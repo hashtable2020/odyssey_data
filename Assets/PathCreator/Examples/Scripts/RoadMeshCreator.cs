@@ -8,7 +8,7 @@ namespace PathCreation.Examples {
     {
         [Header("Configuration")] 
         public string holderIndex;
-        [Range(-1.00f, 1.00f)] 
+        [Range(-1.00f, 1.00f)]
         public float yOffset;
         
         [Header ("Road Settings")]

@@ -1,1 +1,1 @@
-xcopy /s /z /y /v "C:\Users\User\Desktop\odyssey_data\Assets\Data\*.png" "C:\Users\User\Desktop\odyssey_img\Data\"
+xcopy /s /z /y /v "C:\Users\Ian Lai\Documents\GitHub\odyssey_data\Assets\Data\*.png" "C:\Users\Ian Lai\Documents\GitHub\odyssey_img\Data\"
