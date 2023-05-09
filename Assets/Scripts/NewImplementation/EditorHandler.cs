@@ -240,33 +240,66 @@ public class EditorHandler : Editor
     // Return all paths that need to be drawn
     BezierPoint[][] PathsFromCourse(BezierPoint[][] coursePoints, bool closedLoop)
     {
-        BezierPoint[][] newPaths = {};
+        int size = (closedLoop ? 0 : -1);
+        List<int> sizes = new List<int>();
+        int sizeIndex = 0;
+        for (int i = 0; i < coursePoints.Length; i++)
+        {
+            if (coursePoints[i].Length >= 2)
+            {
+                size += coursePoints[i].Length + 1;
+                List<int> newSizes = new List<int>();
+                for (int j = 0; j < coursePoints.Length; j++)
+                {
+                    newSizes.Add(3);
+                }
+                newSizes.Add(0);
+                sizes.AddRange(newSizes);
+                sizeIndex += coursePoints.Length + 1;
+            }
+            else
+            {
+                sizes[sizeIndex]++;
+            }
+        }
+        
+        BezierPoint[][] newPaths = new BezierPoint[size][];
         int currentIndex = 0;
+        int currentPathIndex = 0;
         for (int i = 0; i < coursePoints.Length + (closedLoop ? 0 : -1); i++)
         {
             if (coursePoints[i].Length > 1)
             {
                 for (int j = 1; j < coursePoints[i].Length + 1; j++)
                 {
-                    newPaths.Add(
+                    BezierPoint[] newPath =
                     {
                         coursePoints[i - 1][0],
-                        coursePoints[i][j - 1], 
+                        coursePoints[i][j - 1],
                         coursePoints[(i + 1) % coursePoints.Length][0]
-                    });
+                    };
+                    newPaths[currentIndex + j - 1] = newPath;
                 }
                 currentIndex += coursePoints[i].Length + 1;
+                currentPathIndex = 0;
+                newPaths[currentIndex] = new BezierPoint[sizes[currentIndex]];
             }
             else
             {
-                newPaths[currentIndex].Add(
-                    coursePoints[i][0]);
+                newPaths[currentIndex][currentPathIndex] = coursePoints[i][0];
+                currentPathIndex++;
             }
         }
+
+        return newPaths;
     }
     
     void DrawMultipleSplines(BezierPoint[][] coursePoints)
     {
-        
+        BezierPoint[][] newPaths = PathsFromCourse(coursePoints, _path.pathParams.closedLoop);
+        foreach (BezierPoint[] path in newPaths)
+        {
+            DrawBezierDisplay(path);
+        }
     }
 }
