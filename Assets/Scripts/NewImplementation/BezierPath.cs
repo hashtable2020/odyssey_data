@@ -37,12 +37,18 @@ public class BezierPath : MonoBehaviour
 
 public class BezierPoint {
     public Vector3 BasePoint;
-    public Vector3[] HandlePoints;
+    public Vector3 LocalHandle;
+    public Vector3[] HandlePoints
+    {
+        get { return new[] { LocalHandle + BasePoint, -LocalHandle + BasePoint }; }
+    }
+    
 
-    public BezierPoint(Vector3 basePoint, Vector3[] handles)
+    public BezierPoint(Vector3 basePoint, Vector3 handle)
     {
         BasePoint = basePoint;
-        HandlePoints = handles;
+        // Makes handles relative
+        LocalHandle = handle;
     }
 }
 
@@ -50,7 +56,7 @@ public class BezierPoint {
 public class PathParams
 {
     public BezierPoint[][] CoursePoints;
-    public float resolution = 0.1f;
+    public float resolution = 0.01f;
     public bool closedLoop;
 }
 
@@ -60,9 +66,10 @@ public class UIParams
     public Collider roadCollider;
     public float maxMouseDistance = 1000f;
     public float pointSize = 0.1f;
+    public Color pointColor = Color.red;
     public Color curveColor = Color.green;
     public Texture2D curveTexture = null;
-    public float curveWidth = 0.05f;
+    public float curveWidth = 0.1f;
     public bool showNormals = true;
     // Width of the offset lines
     public float offsetWidth = 0.5f;

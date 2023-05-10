@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
+using Vector3 = UnityEngine.Vector3;
 
 [CustomEditor(typeof(BezierPath))]
 [CanEditMultipleObjects]
@@ -13,9 +14,13 @@ public class EditorHandler : Editor
     bool _clicked = false;
     bool _hovering = false;
     bool _stillSelected = true;
+    private int _pointSelected = -1;
+    private int _handleSelected = 0;
     Vector3 _point = Vector3.zero;
     KeyCode _keyPressed = KeyCode.None;
-    KeyCode[] _hotkeys = new KeyCode[] {KeyCode.LeftShift, KeyCode.LeftAlt, KeyCode.S, KeyCode.M};
+    KeyCode[] _hotkeys = {KeyCode.LeftShift, KeyCode.LeftControl, KeyCode.S, KeyCode.M};
+    private BezierPoint[] _testPath = { new BezierPoint(Vector3.zero, Vector3.left), 
+        new BezierPoint(Vector3.forward, Vector3.right)};
 
     private SerializedProperty[] _parameters = new SerializedProperty[2];
     //public Button resetPath;
@@ -94,7 +99,6 @@ public class EditorHandler : Editor
     }
     void OnSceneGUI()
     {
-        
         /*if (Event.current.type == EventType.KeyDown)
         {
             if (Event.current.keyCode == KeyCode.LeftShift)
@@ -124,9 +128,31 @@ public class EditorHandler : Editor
         }
 
         // Keyboard shortcuts, alt+click to remove, shift+click to add, s to split the path, m to merge
-        if (_clicked)
+        if (_pointSelected != -1 && _clicked)
+        {
+            
+        }
+        else if (_clicked)
         {
             _stillSelected = _hovering;
+            bool broken = false;
+            for (int i = 0; i < _testPath.Length; i++)
+            {
+                BezierPoint point = _testPath[i];
+                //Debug.Log("Point index: " + i + ", Distance: " + Vector3.Distance(_point, point.BasePoint));
+                if (Vector3.Distance(_point, point.BasePoint) <= _path.uiParams.pointSize)
+                {
+                    _pointSelected = i;
+                    broken = true;
+                    break;
+                }
+            }
+
+            if (broken)
+            {
+                _pointSelected = -1;
+            }
+
             /*if (_point != Vector3.down)
             {
                 Debug.Log("Clicked at " + _point);
@@ -149,6 +175,21 @@ public class EditorHandler : Editor
             //_path.PointHandler(_keyPressed, -1, _point);
         }
 
+        if (_pointSelected != -1)
+        {
+            EditorGUI.BeginChangeCheck();
+            Vector3 newPosition = Handles.PositionHandle(_testPath[_pointSelected].BasePoint, Quaternion.identity);
+            if (EditorGUI.EndChangeCheck())
+            {
+                //Undo.RecordObject(_testPath, "Changed point position");
+                //Debug.Log("Updating!");
+                _testPath[_pointSelected].BasePoint = newPosition;
+                DrawBezierDisplay(_testPath);
+            }
+        }
+        
+        DrawBezierDisplay(_testPath);
+
     }
 
     void OnEnable()
@@ -156,6 +197,7 @@ public class EditorHandler : Editor
         _path = target as BezierPath;
         _parameters[0] = serializedObject.FindProperty("pathParams");
         _parameters[1] = serializedObject.FindProperty("uiParams");
+        Tools.hidden = true;
     }
 
     public override void OnInspectorGUI()
@@ -165,6 +207,7 @@ public class EditorHandler : Editor
         EditorGUILayout.PropertyField(_parameters[0], new GUIContent("Path Parameters"));
         EditorGUILayout.PropertyField(_parameters[1], new GUIContent("UI Parameters"));
         serializedObject.ApplyModifiedProperties();
+        DrawBezierDisplay(_testPath);
     }
 
     
@@ -172,8 +215,9 @@ public class EditorHandler : Editor
     // Also draws normals if required with a length of normalLength, thickness of normalThickness and division normals
     // along each curve
     void DrawBezierSpline(BezierPoint[] curvePoints, 
-        float offset, Color color, Texture2D texture, float width, 
-        bool showNormals=false, float normalLength=1, float normalThickness=1, int division=20)
+        float offset, Color curveColor, Texture2D texture, float width, 
+        bool showNormals=false, float normalLength=1, float normalThickness=1, float offsetThickness=1
+        , int division=20)
     {
         for (int i = 0; i < curvePoints.Length + (_path.pathParams.closedLoop ? 0 : -1); i++)
         {
@@ -182,33 +226,51 @@ public class EditorHandler : Editor
                 Vector3.Normalize(Vector3.Cross(Vector3.up, curvePoints[i].HandlePoints[1])),
                 Vector3.Normalize(Vector3.Cross(Vector3.up, curvePoints[(i + 1) % curvePoints.Length].HandlePoints[0]))
             };
+            Handles.color = _path.uiParams.pointColor;
+            Handles.DrawSolidDisc(curvePoints[i].BasePoint, Vector3.up, _path.uiParams.pointSize);
             Handles.DrawBezier(curvePoints[i].BasePoint + offset * normals[0],
                 curvePoints[(i + 1) % curvePoints.Length].BasePoint + offset * normals[1],
                 curvePoints[i].HandlePoints[1],
                 curvePoints[(i + 1) % curvePoints.Length].HandlePoints[0],
-                color,
+                curveColor,
                 texture,
                 width
             );
             
             if (showNormals)
             {
+                Handles.color = _path.uiParams.normalColor;
                 Vector3[] normalPoints = Handles.MakeBezierPoints(
                     curvePoints[i].BasePoint + offset * normals[0],
                     curvePoints[(i + 1) % curvePoints.Length].BasePoint + offset * normals[1],
                     curvePoints[i].HandlePoints[1],
                     curvePoints[(i + 1) % curvePoints.Length].HandlePoints[0],
                     division);
+                
                 for (int j = 0; j < normalPoints.Length - 1; j++)
                 {
                     Vector3 diff = normalPoints[j + 1] - normalPoints[j];
                     Vector3 localNormal = Vector3.Normalize(Vector3.Cross(diff, Vector3.up));
+                    Handles.color = _path.uiParams.normalColor;
                     Handles.DrawLine(normalPoints[j] + normalLength * localNormal / 2, 
                         normalPoints[j] - normalLength * localNormal / 2,
                         normalThickness);
+                    Handles.color = curveColor;
+                    Handles.DrawLine(normalPoints[j] + normalLength * localNormal / 2,
+                        normalPoints[j + 1] + normalLength * localNormal / 2,
+                       offsetThickness);
+                    Handles.DrawLine(normalPoints[j] - normalLength * localNormal / 2,
+                        normalPoints[j + 1] - normalLength * localNormal / 2,
+                        offsetThickness);
                 }
                 
             }
+        }
+
+        if (!_path.pathParams.closedLoop)
+        {
+            Handles.color = _path.uiParams.pointColor;
+            Handles.DrawSolidDisc(curvePoints[curvePoints.Length - 1].BasePoint, Vector3.up, _path.uiParams.pointSize);
         }
     }
 
@@ -221,9 +283,10 @@ public class EditorHandler : Editor
             _path.uiParams.showNormals,
             _path.uiParams.normalDistance,
             _path.uiParams.normalWidth,
+            _path.uiParams.offsetWidth,
             Mathf.RoundToInt(1 / _path.pathParams.resolution));
         
-        if (_path.uiParams.showNormals)
+        /*if (_path.uiParams.showNormals)
         {
             DrawBezierSpline(curvePoints, -_path.uiParams.normalDistance/2, 
                 _path.uiParams.curveColor, 
@@ -233,7 +296,7 @@ public class EditorHandler : Editor
                 _path.uiParams.curveColor, 
                 _path.uiParams.curveTexture, 
                 _path.uiParams.offsetWidth);
-        }
+        }*/
         
     }
     
