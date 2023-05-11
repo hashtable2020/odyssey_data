@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,7 +9,7 @@ public class BezierMesh : MonoBehaviour
 {
 
     // Create mesh
-
+    BezierPath CoursePath;
     // Start is called after play mode has begun
     void Start()
     {

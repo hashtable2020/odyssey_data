@@ -310,21 +310,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pathParams:
-    resolution: 0.02
+    resolution: 0.01
     closedLoop: 0
+    splitWidth: 1
   uiParams:
     roadCollider: {fileID: 181529619}
     maxMouseDistance: 1000
     pointSize: 0.05
     pointColor: {r: 1, g: 0, b: 0, a: 1}
     curveColor: {r: 0, g: 1, b: 0, a: 1}
-    curveTexture: {fileID: 2800000, guid: 27612aa46f0fd374698b5007d2bf81ad, type: 3}
-    curveWidth: 2
+    curveTexture: {fileID: 0}
+    curveWidth: 0.1
     showNormals: 1
     offsetWidth: 0.5
-    normalDistance: 0.05
+    normalDistance: 0.03
     normalColor: {r: 0, g: 1, b: 1, a: 1}
-    normalWidth: 0.5
+    normalWidth: 0.01
 --- !u!1 &1371574125
 GameObject:
   m_ObjectHideFlags: 0
