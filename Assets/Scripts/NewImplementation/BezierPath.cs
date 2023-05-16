@@ -1,14 +1,15 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [ExecuteAlways]
 public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
 {
     public PathParams pathParams;
-
     public UIParams uiParams;
+
+    public BezierMesh roadMesh;
 
     // Sends the key pressed, the point selected (if any) (use -1 as a null value) and the position of the click (use Vector3.down)
     public delegate void EventHandler(KeyCode key, int index, Vector3 pos);
@@ -31,6 +32,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             }
             PointHandler += (key, index, pos) =>
             {
+                // Keyboard shortcuts, ctrl+click to remove, shift+click to add, s+click to split the path, m+click to merge, d to deselect
                 if (key == KeyCode.LeftShift)
                 {
                     BezierPoint[][] tmpPoints = new BezierPoint[pathParams.CoursePoints.Length + 1][];
@@ -63,14 +65,14 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
 
                     foreach (BezierPoint point in pathParams.CoursePoints[index])
                     {
-                        centre += point.BasePoint;
+                        centre += point.basePoint;
                     }
                     centre /= arrLength;
                     
                     Vector3 tangent = (arrLength % 2 == 0) ? 
-                        (pathParams.CoursePoints[index][arrLength / 2 - 1].LocalHandle +
-                         pathParams.CoursePoints[index][arrLength / 2].LocalHandle) / 2
-                    : pathParams.CoursePoints[index][(arrLength - 1) / 2].LocalHandle;
+                        (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandle +
+                         pathParams.CoursePoints[index][arrLength / 2].localHandle) / 2
+                    : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandle;
                     //Debug.Log(tangent);
                     Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent, Vector3.up));
                     
@@ -107,14 +109,14 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
 
                         foreach (BezierPoint point in pathParams.CoursePoints[index])
                         {
-                            centre += point.BasePoint;
+                            centre += point.basePoint;
                         }
                         centre /= arrLength;
                     
                         Vector3 tangent = (arrLength % 2 == 0) ? 
-                            (pathParams.CoursePoints[index][arrLength / 2 - 1].LocalHandle +
-                             pathParams.CoursePoints[index][arrLength / 2].LocalHandle) / 2
-                            : pathParams.CoursePoints[index][(arrLength - 1) / 2].LocalHandle;
+                            (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandle +
+                             pathParams.CoursePoints[index][arrLength / 2].localHandle) / 2
+                            : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandle;
                         //Debug.Log(tangent);
                         Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent, Vector3.up));
                     
@@ -144,6 +146,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                 }
                 
             };
+            //Refresh += roadMesh.UpdateMesh;
 
             Reset += () =>
             {
@@ -174,20 +177,21 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
     }
 }
 
+[System.Serializable]
 public class BezierPoint {
-    public Vector3 BasePoint;
-    public Vector3 LocalHandle;
+    public Vector3 basePoint;
+    public Vector3 localHandle;
     public Vector3[] HandlePoints
     {
-        get { return new[] { LocalHandle + BasePoint, -LocalHandle + BasePoint }; }
+        get { return new[] { localHandle + basePoint, -localHandle + basePoint }; }
     }
     
 
     public BezierPoint(Vector3 basePoint, Vector3 handle)
     {
-        BasePoint = basePoint;
+        this.basePoint = basePoint;
         // Makes handles relative
-        LocalHandle = handle;
+        localHandle = handle;
     }
 
     public static BezierPoint Zero = new BezierPoint(Vector3.zero, Vector3.zero);
@@ -199,7 +203,7 @@ public class PathParams
     public BezierPoint[][] CoursePoints;
     
     
-    public float resolution = 0.01f;
+    public float resolution = 0.05f;
     public bool closedLoop;
     public float splitWidth = 0.1f;
 }

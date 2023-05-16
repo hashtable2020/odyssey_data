@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using Mono.Cecil.Cil;
@@ -12,15 +11,16 @@ public class EditorHandler : Editor
 {
     BezierPath _path;
     bool _clicked = false;
-    bool _hovering = false;
-    bool _stillSelected = true;
+    bool _dragging = false;
     private int _pointSelected = -1;
     private int _indexSelected = 0;
     private int _handleSelected = 0;
+    private int _planeSelected = 0;
+    private string[] _planeOptions = { "Top-down (xz)", "Side-on (xy)", "Side-on (yz)", "Free-space (xyz)" };
     Vector3 _point = Vector3.zero;
     private BezierPoint[][] _pathPoints;
     private KeyCode _keyPressed = KeyCode.None;
-    private readonly KeyCode[] _hotkeys = {KeyCode.LeftShift, KeyCode.LeftControl, KeyCode.S, KeyCode.M, KeyCode.D};
+    private readonly KeyCode[] _hotkeys = {KeyCode.LeftShift, KeyCode.LeftControl, KeyCode.S, KeyCode.M};
     private SerializedProperty[] _parameters = new SerializedProperty[2];
     //public Button resetPath;
     
@@ -79,7 +79,7 @@ public class EditorHandler : Editor
         // If the user is holding down a key, change the global hotkey variable to the key pressed
         else if (Event.current.type == EventType.KeyDown)
         {
-            if (Array.IndexOf(_hotkeys, Event.current.keyCode) > -1)
+            if (System.Array.IndexOf(_hotkeys, Event.current.keyCode) > -1)
             {
                 key = Event.current.keyCode;
                 changeKey = true;
@@ -97,45 +97,63 @@ public class EditorHandler : Editor
     }
     void OnSceneGUI()
     {
-        /*if (Event.current.type == EventType.KeyDown)
+        // Defines new variable for later
+        _pathPoints = _path.pathParams.CoursePoints;
+        Selection.activeObject = target;
+        if (_pointSelected != -1)
         {
-            if (Event.current.keyCode == KeyCode.LeftShift)
+            // Draws the selected point and handles
+            BezierPoint selectedPoint = _pathPoints[_pointSelected][_indexSelected];
+            Handles.color = _path.uiParams.handleColor;
+            Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints[0], _path.uiParams.handleWidth);
+            Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints[1], _path.uiParams.handleWidth);
+            Handles.color = _path.uiParams.handleDiskColor;
+            Handles.DrawSolidDisc(selectedPoint.HandlePoints[0], Vector3.up, _path.uiParams.handleSize);
+            Handles.DrawSolidDisc(selectedPoint.HandlePoints[1], Vector3.up, _path.uiParams.handleSize);
+            
+            
+            // Checks if any of them have been dragged
+            EditorGUI.BeginChangeCheck();
+            Vector3 newPosition = _handleSelected == 0 ? Handles.PositionHandle(selectedPoint.basePoint, Quaternion.identity) : 
+                Handles.PositionHandle(selectedPoint.HandlePoints[(1 - _handleSelected) / 2], Quaternion.identity);
+            if (EditorGUI.EndChangeCheck())
             {
-                Debug.Log("Shift is being pressed!");   
+                _dragging = true;
+                Undo.RecordObject(_path, "Changed path parameters");
+                if (_handleSelected == 0)
+                {
+                    selectedPoint.basePoint = newPosition;
+                }
+                else
+                {
+                    selectedPoint.localHandle = (newPosition - selectedPoint.basePoint) * _handleSelected;
+                }
             }
-        }*/
-        //Debug.Log("Updating!");
-        if (_stillSelected)
-        {
-            Selection.activeObject = target;
+            else
+            {
+                _dragging = false;
+            }
         }
         if (_path == null)
         {
             return;
         }
 
-        _pathPoints = _path.pathParams.CoursePoints;
-        //Debug.Log(pathPoints);
-
         KeyCode tmpKey = _keyPressed;
         bool changeKey;
+        bool hovering;
         
         // Gets the current mouse position and whether the user has clicked it in this frame
-        _point = ClickHandler(_path, out _clicked, out _hovering, out tmpKey, out changeKey);
+        _point = ClickHandler(_path, out _clicked, out hovering, out tmpKey, out changeKey);
 
         if (changeKey)
         {
             _keyPressed = tmpKey;
-            if (_keyPressed == KeyCode.D)
-            {
-                _pointSelected = -1;
-                _indexSelected = 0;
-                _handleSelected = 0;
-            }
         }
         
         if (_clicked)
         {
+            bool handleBroken = false;
             if (_pointSelected != -1)
             {
                 BezierPoint point = _pathPoints[_pointSelected][_indexSelected];
@@ -145,39 +163,44 @@ public class EditorHandler : Editor
                     if (Vector3.Distance(_point, point.HandlePoints[i]) <= _path.uiParams.handleSize)
                     {
                         _handleSelected = 1 - 2 * i;
+                        handleBroken = true;
                         break;
                     }
                 }
             }
-            bool broken = false;
+            bool pointBroken = false;
             for (int i = 0; i < _pathPoints.Length; i++)
             {
                 for (int j = 0; j < _pathPoints[i].Length; j++)
                 {
                     //Debug.Log(i + " " + j);
                     BezierPoint point = _pathPoints[i][j];
-                    //Debug.Log("Point index: " + j + ", Distance: " + Vector3.Distance(_point, point.BasePoint));
-                    if (Vector3.Distance(_point, point.BasePoint) <= _path.uiParams.pointSize)
+                    //Debug.Log("Point index: " + j + ", Distance: " + Vector3.Distance(_point, point.basePoint));
+                    if (Vector3.Distance(_point, point.basePoint) <= _path.uiParams.pointSize)
                     {
                         _pointSelected = i;
                         _indexSelected = j;
                         _handleSelected = 0;
-                        broken = true;
+                        pointBroken = true;
                         break;
                     }
                 }
 
-                if (broken)
+                if (pointBroken)
                 {
                     break;
                 }
             }
-            // Keyboard shortcuts, ctrl+click to remove, shift+click to add, s to split the path, m to merge
-            
-            
-            
-            Debug.Log("Handle Selected: " + _handleSelected);
-            Debug.Log("Point Selected: " + _pointSelected);
+
+            if (!pointBroken && !handleBroken && !_dragging)
+            {
+                _pointSelected = -1;
+                _indexSelected = 0;
+                _handleSelected = 0;
+            } 
+
+            /*Debug.Log("Handle Selected: " + _handleSelected);
+            Debug.Log("Point Selected: " + _pointSelected);*/
         }
         
         
@@ -187,7 +210,7 @@ public class EditorHandler : Editor
             if (_clicked)
             {
                 if (!(_keyPressed != KeyCode.LeftShift && _pointSelected == -1))
-                _path.PointHandler(_keyPressed, _pointSelected, _point);
+                    _path.PointHandler(_keyPressed, _pointSelected, _point);
                 if (_keyPressed == KeyCode.LeftControl)
                 {
                     _pointSelected = -1;
@@ -195,46 +218,7 @@ public class EditorHandler : Editor
             }
         }
 
-        if (_pointSelected != -1)
-        {
-            //Debug.Log("i: " + _pointSelected + ", j: " + _indexSelected);
-            BezierPoint selectedPoint = _pathPoints[_pointSelected][_indexSelected];
-            Handles.color = _path.uiParams.handleColor;
-            Handles.DrawLine(selectedPoint.BasePoint, selectedPoint.HandlePoints[0], _path.uiParams.handleWidth);
-            Handles.DrawLine(selectedPoint.BasePoint, selectedPoint.HandlePoints[1], _path.uiParams.handleWidth);
-            Handles.color = _path.uiParams.handleDiskColor;
-            Handles.DrawSolidDisc(selectedPoint.HandlePoints[0], Vector3.up, _path.uiParams.handleSize);
-            Handles.DrawSolidDisc(selectedPoint.HandlePoints[1], Vector3.up, _path.uiParams.handleSize);
-            //Debug.Log(_handleSelected);
-            
-            if (_handleSelected == 0)
-            {
-                EditorGUI.BeginChangeCheck();
-                //Debug.Log("Changing Position");
-                Vector3 newPosition = Handles.PositionHandle(selectedPoint.BasePoint, Quaternion.identity);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    Undo.RecordObject(target, "Moved point");
-                    //Undo.RecordObject(_testPath, "Changed point position");
-                    //Debug.Log("Updating!");
-                    selectedPoint.BasePoint = newPosition;
-                    _path.Refresh();
-                }
-            }
-            else
-            {
-                EditorGUI.BeginChangeCheck();
-                Vector3 newPosition = Handles.PositionHandle(selectedPoint.HandlePoints[(1 - _handleSelected) / 2], Quaternion.identity);
-                if (EditorGUI.EndChangeCheck())
-                    Undo.RecordObject(target, "Moved point");
-                    //Undo.RecordObject(_testPath, "Changed point position");
-                    //Debug.Log("Updating!");
-                    selectedPoint.LocalHandle = (newPosition - selectedPoint.BasePoint) * _handleSelected;
-                    _path.Refresh();
-                }
-        }
         _path.Refresh();
-
     }
 
     void OnEnable()
@@ -257,34 +241,98 @@ public class EditorHandler : Editor
         if (_path == null || _parameters == null)
             return;
         
-        EditorGUILayout.PropertyField(_parameters[0], new GUIContent("Path Parameters"));
-        EditorGUILayout.PropertyField(_parameters[1], new GUIContent("UI Parameters"));
-        
+        EditorGUI.BeginChangeCheck();
+        _planeSelected = EditorGUILayout.Popup("Bezier Path Plane", _planeSelected, _planeOptions);
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField(new GUIContent("Selected Point: "));
         // Make point selected appear in Inspector
         if (_pointSelected != -1)
         {
+            EditorGUI.indentLevel += 2;
             
+            BezierPoint selectedPoint = _path.pathParams.CoursePoints[_pointSelected][_indexSelected];
+            EditorGUILayout.BeginHorizontal();
+            selectedPoint.basePoint = EditorGUILayout.Vector3Field("Base Point: ", RoundVector(selectedPoint.basePoint, 2));
+
+            selectedPoint.basePoint = CorrectVector(selectedPoint.basePoint, _planeSelected);
+            
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.BeginHorizontal();
+            selectedPoint.localHandle = EditorGUILayout.Vector3Field("Local Handle: ", RoundVector(selectedPoint.localHandle, 2));
+            selectedPoint.localHandle = CorrectVector(selectedPoint.localHandle, _planeSelected);
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUI.indentLevel -= 2;
         }
+        
+        EditorGUILayout.Space();
+        
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField(new GUIContent("Road Mesh Object: "));
+        _path.roadMesh = (BezierMesh) EditorGUILayout.ObjectField(_path.roadMesh, typeof(BezierMesh), _path.roadMesh);
+        EditorGUILayout.EndHorizontal();
+        
+        EditorGUILayout.Space();
+
+        EditorGUILayout.PropertyField(_parameters[0], new GUIContent("Path Parameters"));
+        EditorGUILayout.PropertyField(_parameters[1], new GUIContent("UI Parameters"));
 
         if (GUILayout.Button("Reset Path"))
         {
             _path.Reset();
+            _path.Refresh();
         }
 
         if (GUILayout.Button("Refresh Visuals"))
         {
             _path.Refresh();
         }
+
+        if (GUILayout.Button("Update Mesh"))
+        {
+            _path.roadMesh.UpdateMesh();
+        }
+        
         serializedObject.ApplyModifiedProperties();
+        Repaint();
         _path.Refresh();
     }
 
+    float RoundFloat(float x, int n)
+    {
+        return (float)(Mathf.Round((float)(x * System.Math.Pow(10, n))) / System.Math.Pow(10, n));
+    }
+
+    Vector3 RoundVector(Vector3 v, int n)
+    {
+        return new Vector3(RoundFloat(v.x, n), RoundFloat(v.y, n), RoundFloat(v.z, n));
+    }
+
+    Vector3 CorrectVector(Vector3 v, int mode)
+    {
+        switch (mode)
+        {
+            case 0:
+                return new Vector3(v.x, 0, v.z);
+            case 1:
+                return new Vector3(v.x, v.y, 0);
+            case 2:
+                return new Vector3(0, v.y, v.z);
+            case 3:
+                return v;
+            default:
+                Debug.Log("Unexpected mode.");
+                break;
+        }
+
+        return Vector3.zero;
+    }
+
     
-    // Draws a multi-curve spline from several bezier points and a specific offset, colour, texture and width
-    // Also draws normals if required with a length of normalLength, thickness of normalThickness and division normals
-    // along each curve
-    void DrawBezierSpline(BezierPoint[][] curvePoints, 
-        float offset, Color curveColor, Texture2D texture, float width, 
+    /* Draws a multi-curve spline from several bezier points and a specific offset, colour, texture and width
+    Also draws normals if required with a length of normalLength, thickness of normalThickness and division normals
+    along each curve */
+    void DrawBezierSpline(BezierPoint[][] curvePoints, Color curveColor, Texture2D texture, float width, 
         bool showNormals=false, float normalLength=1, float normalThickness=1, float offsetThickness=1
         , int division=20)
     {
@@ -295,22 +343,17 @@ public class EditorHandler : Editor
         if (curvePoints.Length == 1)
         {
             Handles.color = _path.uiParams.pointColor;
-            Handles.DrawSolidDisc(curvePoints[0][0].BasePoint, Vector3.up, _path.uiParams.pointSize);
+            Handles.DrawSolidDisc(curvePoints[0][0].basePoint, Vector3.up, _path.uiParams.pointSize);
             return;
         }
-        for (int i = 0; i < curvePoints.Length - 1; i++)
+        for (int i = 0; i < curvePoints.Length + (_path.pathParams.closedLoop ? 0 : -1); i++)
         {
             for (int j = 0; j < curvePoints[i].Length; j++)
             {
                 for (int k = 0; k < curvePoints[(i + 1) % curvePoints.Length].Length; k++)
                 {
-                    Vector3[] normals = 
-                    {
-                        Vector3.Normalize(Vector3.Cross(Vector3.up, curvePoints[i][j].HandlePoints[1])),
-                        Vector3.Normalize(Vector3.Cross(Vector3.up, curvePoints[(i + 1) % curvePoints.Length][k].HandlePoints[0]))
-                    };
-                    Handles.DrawBezier(curvePoints[i][j].BasePoint + offset * normals[0],
-                        curvePoints[(i + 1) % curvePoints.Length][k].BasePoint + offset * normals[1],
+                    Handles.DrawBezier(curvePoints[i][j].basePoint,
+                        curvePoints[(i + 1) % curvePoints.Length][k].basePoint,
                         curvePoints[i][j].HandlePoints[1],
                         curvePoints[(i + 1) % curvePoints.Length][k].HandlePoints[0],
                         curveColor,
@@ -322,8 +365,8 @@ public class EditorHandler : Editor
                     {
                         Handles.color = _path.uiParams.normalColor;
                         Vector3[] normalPoints = Handles.MakeBezierPoints(
-                            curvePoints[i][j].BasePoint + offset * normals[0],
-                            curvePoints[(i + 1) % curvePoints.Length][k].BasePoint + offset * normals[1],
+                            curvePoints[i][j].basePoint,
+                            curvePoints[(i + 1) % curvePoints.Length][k].basePoint,
                             curvePoints[i][j].HandlePoints[1],
                             curvePoints[(i + 1) % curvePoints.Length][k].HandlePoints[0],
                             division);
@@ -345,17 +388,17 @@ public class EditorHandler : Editor
                                 offsetThickness);
                         }
                 
-                }
-            } 
+                    }
+                } 
             }
-    }
+        }
         
         Handles.color = _path.uiParams.pointColor;
         foreach (BezierPoint[] path in curvePoints)
         {
             foreach (BezierPoint point in path)
             {
-                Handles.DrawSolidDisc(point.BasePoint, Vector3.up, _path.uiParams.pointSize);
+                Handles.DrawSolidDisc(point.basePoint, Vector3.up, _path.uiParams.pointSize);
             }
         }
         //Debug.Log("Working!");
@@ -363,7 +406,7 @@ public class EditorHandler : Editor
 
     void DrawBezierDisplay(BezierPoint[][] curvePoints)
     {
-        DrawBezierSpline(curvePoints, 0, 
+        DrawBezierSpline(curvePoints, 
                 _path.uiParams.curveColor, 
                 _path.uiParams.curveTexture, 
                 _path.uiParams.curveWidth,
@@ -372,122 +415,5 @@ public class EditorHandler : Editor
                 _path.uiParams.normalWidth,
                 _path.uiParams.offsetWidth,
                 Mathf.RoundToInt(1 / _path.pathParams.resolution));
-            /*if (_path.uiParams.showNormals)
-            {
-                DrawBezierSpline(curvePoints, -_path.uiParams.normalDistance/2, 
-                    _path.uiParams.curveColor, 
-                    _path.uiParams.curveTexture, 
-                    _path.uiParams.offsetWidth);
-                DrawBezierSpline(curvePoints, _path.uiParams.normalDistance/2, 
-                    _path.uiParams.curveColor, 
-                    _path.uiParams.curveTexture, 
-                    _path.uiParams.offsetWidth);
-            }*/
-        
     }
-    
-    /*// Return all paths that need to be drawn
-    BezierPoint[][] PathsFromCourse(BezierPoint[][] coursePoints, bool closedLoop)
-    {
-        if (coursePoints == null || coursePoints.Length == 0)
-        {
-            return null;
-        } 
-        if (coursePoints.Length == 1)
-        {
-            return new[] { new[] { coursePoints[0][0] } };
-        }
-        int size = 1;
-        List<int> sizes = new List<int>();
-        sizes.Add(0);
-        int sizeIndex = 0;
-        for (int i = 0; i < coursePoints.Length; i++)
-        {
-            if (coursePoints[i].Length >= 2)
-            {
-                size += coursePoints[i].Length + 1;
-                for (int j = 0; j < coursePoints.Length; j++)
-                {
-                    sizes.Add(3);
-                }
-                sizes.Add(0);
-                sizeIndex += coursePoints.Length + 1;
-            }
-            else
-            {
-                sizes[sizeIndex]++;
-            }
-            Debug.Log("Length: " + sizes.Count);
-            foreach (int newSize in sizes)
-            {
-                Debug.Log(newSize);
-            }
-            Debug.Log("__");
-        }
-        
-        if (closedLoop)
-        {
-            sizes[^1]++;
-        }
-        
-
-        //Debug.Log(sizes[0] + " " + sizes[1]);
-
-        BezierPoint[][] newPaths = new BezierPoint[size][];
-        int currentIndex = 0;
-        int currentPathIndex = 0;
-        newPaths[currentIndex] = new BezierPoint[sizes[currentIndex]];
-        for (int i = 0; i < coursePoints.Length; i++)
-        {
-            if (coursePoints[i].Length > 1)
-            {
-                for (int j = 1; j < coursePoints[i].Length + 1; j++)
-                {
-                    BezierPoint[] newPath =
-                    {
-                        coursePoints[i - 1][0],
-                        coursePoints[i][j - 1],
-                        coursePoints[(i + 1) % coursePoints.Length][0]
-                    };
-                    newPaths[currentIndex + j] = newPath;
-                }
-                currentIndex += coursePoints[i].Length + 1;
-                currentPathIndex = 0;
-                newPaths[currentIndex] = new BezierPoint[sizes[currentIndex]];
-            }
-            else
-            {
-                if (sizes[currentIndex] != 1)
-                {
-                    newPaths[currentIndex][currentPathIndex] = coursePoints[i][0];
-                    currentPathIndex++;
-                }
-            }
-        }
-
-        if (closedLoop)
-        {
-            newPaths[^1][^1] = coursePoints[0][0];
-        }
-
-        if (newPaths.Length > 1)
-        {
-            Debug.Log(newPaths[2][1].BasePoint);
-            Debug.Log(newPaths[1][1].BasePoint);
-        }
-        //Debug.Log(newPaths[1][1].BasePoint);
-
-        return newPaths;
-    }
-    
-    void DrawMultipleSplines(BezierPoint[][] coursePoints)
-    {
-        BezierPoint[][] newPaths = PathsFromCourse(coursePoints, _path.pathParams.closedLoop);
-        if (newPaths == null)
-            return;
-        foreach (BezierPoint[] path in newPaths)
-        {
-            DrawBezierDisplay(path);
-        }
-    }*/
 }
