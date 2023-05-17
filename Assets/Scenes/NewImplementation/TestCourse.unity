@@ -371,7 +371,7 @@ MonoBehaviour:
   pathParams:
     resolution: 0.01
     closedLoop: 0
-    splitWidth: 1
+    splitWidth: 0.5
   uiParams:
     roadCollider: {fileID: 181529619}
     maxMouseDistance: 1000

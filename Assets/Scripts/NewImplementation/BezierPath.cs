@@ -69,6 +69,9 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                     }
                     centre /= arrLength;
                     
+                    //Debug.Log(centre);
+                    //Debug.Log(arrLength);
+                    
                     Vector3 tangent = (arrLength % 2 == 0) ? 
                         (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandle +
                          pathParams.CoursePoints[index][arrLength / 2].localHandle) / 2
@@ -81,8 +84,9 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                     BezierPoint[] splitPoints = new BezierPoint[arrLength + 1];
                     for (int i = 0; i < arrLength + 1; i++)
                     {
+                        float x = (2 * (float) i - arrLength);
                         splitPoints[i] = new BezierPoint(Vector3.LerpUnclamped(centre, 
-                            centre + pathParams.splitWidth * normal, i - (arrLength - 1) / 2), tangent);
+                            centre + pathParams.splitWidth * normal, x), tangent);
                     }
 
                     for (int j = 0; j < pathParams.CoursePoints.Length; j++)
@@ -125,8 +129,9 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                         BezierPoint[] splitPoints = new BezierPoint[arrLength - 1];
                         for (int i = 0; i < arrLength - 1; i++)
                         {
+                            float x = (2 * (float) i - arrLength);
                             splitPoints[i] = new BezierPoint(Vector3.LerpUnclamped(centre, 
-                                centre + pathParams.splitWidth * normal, i - (arrLength - 1) / 2 - 1), tangent);
+                                centre + pathParams.splitWidth * normal, x), tangent);
                         }
 
                         for (int j = 0; j < pathParams.CoursePoints.Length; j++)
@@ -170,10 +175,31 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
         }
     }
 
-    // Update is called once per frame
-    void Update()
+    Vector3[][] LocalHandleLocations(BezierPoint[][] coursePoints)
     {
-        
+        Vector3[][] newHandleLocations = new Vector3[coursePoints.Length][];
+        for (int i = 0; i < coursePoints.Length + (pathParams.closedLoop ? 0 : -1); i++)
+        {
+            for (int j = 0; j < coursePoints[i].Length; j++)
+            {
+                Vector3 dirVector = Vector3.zero;
+                for (int k = 0; k < coursePoints[LoopIndex(i - 1, coursePoints)].Length; k++)
+                {
+                    dirVector += (coursePoints[i - 1][k].basePoint - coursePoints[i][j].basePoint);
+                }
+                for (int l = 0; l < coursePoints[LoopIndex(i + 1, coursePoints)].Length; l++)
+                {
+                    dirVector += (coursePoints[i - 1][l].basePoint - coursePoints[i][j].basePoint);
+                }
+
+                dirVector = dirVector.normalized;
+            }
+        }
+    }
+    
+    int LoopIndex(int i, BezierPoint[][] coursePoints)
+    {
+        return i % coursePoints.Length;
     }
 }
 

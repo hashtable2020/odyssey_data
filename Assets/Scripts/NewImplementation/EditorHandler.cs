@@ -211,7 +211,7 @@ public class EditorHandler : Editor
             {
                 if (!(_keyPressed != KeyCode.LeftShift && _pointSelected == -1))
                     _path.PointHandler(_keyPressed, _pointSelected, _point);
-                if (_keyPressed == KeyCode.LeftControl)
+                if (_keyPressed == KeyCode.LeftControl || _keyPressed == KeyCode.M)
                 {
                     _pointSelected = -1;
                 }
@@ -230,7 +230,11 @@ public class EditorHandler : Editor
         if (_path != null)
         {
             _pathPoints = _path.pathParams.CoursePoints;
-            _path.Refresh += () => { DrawBezierDisplay(_pathPoints); };
+            _path.Refresh += () =>
+            {
+                DrawBezierDisplay(_pathPoints);
+            };
+            _path.Reset += () => { _pointSelected = -1; };
             _pointSelected = -1;
         }
 
@@ -327,6 +331,11 @@ public class EditorHandler : Editor
 
         return Vector3.zero;
     }
+    
+    int LoopIndex(int i, BezierPoint[][] coursePoints)
+    {
+        return i % coursePoints.Length;
+    }
 
     
     /* Draws a multi-curve spline from several bezier points and a specific offset, colour, texture and width
@@ -350,12 +359,12 @@ public class EditorHandler : Editor
         {
             for (int j = 0; j < curvePoints[i].Length; j++)
             {
-                for (int k = 0; k < curvePoints[(i + 1) % curvePoints.Length].Length; k++)
+                for (int k = 0; k < curvePoints[LoopIndex(i+1, curvePoints)].Length; k++)
                 {
                     Handles.DrawBezier(curvePoints[i][j].basePoint,
-                        curvePoints[(i + 1) % curvePoints.Length][k].basePoint,
+                        curvePoints[LoopIndex(i+1, curvePoints)][k].basePoint,
                         curvePoints[i][j].HandlePoints[1],
-                        curvePoints[(i + 1) % curvePoints.Length][k].HandlePoints[0],
+                        curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints[0],
                         curveColor,
                         texture,
                         width
@@ -366,9 +375,9 @@ public class EditorHandler : Editor
                         Handles.color = _path.uiParams.normalColor;
                         Vector3[] normalPoints = Handles.MakeBezierPoints(
                             curvePoints[i][j].basePoint,
-                            curvePoints[(i + 1) % curvePoints.Length][k].basePoint,
+                            curvePoints[LoopIndex(i+1, curvePoints)][k].basePoint,
                             curvePoints[i][j].HandlePoints[1],
-                            curvePoints[(i + 1) % curvePoints.Length][k].HandlePoints[0],
+                            curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints[0],
                             division);
                         
                         for (int l = 0; l < normalPoints.Length - 1; l++)

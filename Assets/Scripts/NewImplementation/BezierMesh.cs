@@ -88,6 +88,8 @@ public class BezierMesh : MonoBehaviour
 
         leftMesh.vertices = tmpLeftVertices.ToArray();
         rightMesh.vertices = tmpRightVertices.ToArray();
+        
+        Debug.Log(tmpLeftVertices[0]);
 
         leftMesh.triangles = meshIndices.ToArray();
         rightMesh.triangles = meshIndices.ToArray();
@@ -139,6 +141,8 @@ public class BezierMesh : MonoBehaviour
             arr[i] = color;
         }
     }
+    
+    
 }
 
 [System.Serializable]
