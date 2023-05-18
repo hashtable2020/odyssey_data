@@ -174,13 +174,19 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                 {
                     for (int j = 0; j < pathParams.CoursePoints[i].Length; j++)
                     {
+                        
                         if (!pathParams.CoursePoints[i][j].handlesChanged)
                         {
+                            
                             pathParams.CoursePoints[i][j].localHandles = new[]
                             {
                                 handleLocations[i][2 * j],
                                 handleLocations[i][2 * j + 1],
                             };
+                        }
+                        else
+                        {
+                            //Debug.Log("i: " + i + ", j: " + j);
                         }
                     }
                 }

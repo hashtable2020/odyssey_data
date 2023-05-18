@@ -17,16 +17,16 @@ public class BezierMesh : MonoBehaviour
     {
         //Debug.Log("Starting mesh initialisation!");
         gameObject.SetActive(false);
-        Mesh leftMesh = new Mesh();
-        Mesh rightMesh = new Mesh();
+        Mesh combinedMesh = roadMeshFilter.sharedMesh;
+        combinedMesh.Clear();
         
-        leftMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        rightMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        combinedMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
         List<Vector3> tmpLeftVertices = new List<Vector3>();
         List<Vector3> tmpRightVertices = new List<Vector3>();
 
-        List<int> meshIndices = new List<int>();
+        List<int> leftIndices = new List<int>();
+        List<int> rightIndices = new List<int>();
         
         if (path == null)
             return;
@@ -43,9 +43,10 @@ public class BezierMesh : MonoBehaviour
                 for (int k = 0; k < points[(i + 1) % points.Length].Length; k++)
                 {
                     BezierPoint p2 = points[(i + 1) % points.Length][k];
-
-                    Vector3[] bezierPoints = Handles.MakeBezierPoints(p1.basePoint, p2.basePoint,
-                        p1.HandlePoints[0], p2.HandlePoints[1], division);
+                    Vector3 yOffset = 0.005f * Vector3.up;
+                        
+                    Vector3[] bezierPoints = Handles.MakeBezierPoints(p1.basePoint + yOffset, p2.basePoint + yOffset,
+                        p1.HandlePoints[0] + yOffset, p2.HandlePoints[1] + yOffset, division);
 
                     for (int l = 0; l < bezierPoints.Length; l++)
                     {
@@ -77,7 +78,9 @@ public class BezierMesh : MonoBehaviour
                         tmpRightVertices.AddRange(rightPoints);
                     }
                     // Vertex index logic
-                    meshIndices.AddRange(ReturnIndices(division,
+                    leftIndices.AddRange(ReturnIndices(division,
+                        pathNum * division));
+                    rightIndices.AddRange(ReturnIndices(division,
                         pathNum * division));
 
                     pathNum++;
@@ -86,39 +89,39 @@ public class BezierMesh : MonoBehaviour
             }
         }
 
-        leftMesh.vertices = tmpLeftVertices.ToArray();
-        rightMesh.vertices = tmpRightVertices.ToArray();
+        Vector3[] combinedVertices = new Vector3[tmpLeftVertices.Count + tmpRightVertices.Count];
+
+        combinedMesh.vertices = combinedVertices;
+        Debug.Log(combinedVertices.Length);
+
+        for (int x = 0; x < rightIndices.Count; x++)
+        {
+            rightIndices[x] += tmpLeftVertices.Count;
+        }
+
+        //Debug.Log(tmpLeftVertices[0]);
+        combinedMesh.subMeshCount = 2;
         
-        Debug.Log(tmpLeftVertices[0]);
+        combinedMesh.SetTriangles(leftIndices, 0);
+        combinedMesh.SetTriangles(rightIndices, 1);
 
-        leftMesh.triangles = meshIndices.ToArray();
-        rightMesh.triangles = meshIndices.ToArray();
+        Color32[] colors = new Color32[tmpLeftVertices.Count + tmpRightVertices.Count];
 
-        Color32[] colors = new Color32[tmpLeftVertices.Count];
+        Fill(colors, trackParams.leftLaneColor, 0, tmpLeftVertices.Count);
+        Fill(colors, trackParams.rightLaneColor, tmpLeftVertices.Count, tmpLeftVertices.Count + tmpRightVertices.Count);
 
-        Fill(colors, trackParams.leftLaneColor);
-        leftMesh.SetColors(colors);
+        combinedMesh.SetColors(colors);
         
-        Fill(colors, trackParams.rightLaneColor);
-        rightMesh.SetColors(colors);
-
-        CombineInstance[] combine = new CombineInstance[1];
-        combine[0].mesh = rightMesh;
-        //combine[0].transform
-
-        leftMesh.CombineMeshes(combine);
         
-        Vector2[] uvs = new Vector2[leftMesh.vertexCount];
+        Vector2[] uvs = new Vector2[combinedMesh.vertexCount];
 
         for (int i = 0; i < uvs.Length; i++)
         {
-            uvs[i] = new Vector2(leftMesh.vertices[i].x, leftMesh.vertices[i].z);
+            uvs[i] = new Vector2(combinedMesh.vertices[i].x, combinedMesh.vertices[i].z);
         }
 
-        leftMesh.uv = uvs;
-        
-        roadMeshFilter.sharedMesh = leftMesh;
-        
+        combinedMesh.uv = uvs;
+
         gameObject.SetActive(true);
     }
 
@@ -134,9 +137,9 @@ public class BezierMesh : MonoBehaviour
         return newIndices;
     }
 
-    void Fill(Color32[] arr, Color32 color)
+    void Fill(Color32[] arr, Color32 color, int start, int end)
     {
-        for (int i = 0; i < arr.Length; i++)
+        for (int i = start; i < end; i++)
         {
             arr[i] = color;
         }

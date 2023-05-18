@@ -563,7 +563,7 @@ namespace PathCreation {
             for (int i = 0; i < 2; i++) {
                 int controlIndex = anchorIndex + i * 2 - 1;
                 if (controlIndex >= 0 && controlIndex < points.Count || isClosed) {
-                    points[LoopIndex (controlIndex)] = anchorPos + dir * neighbourDistances[i] * autoControlLength;
+                    points[LoopIndex (controlIndex)] = anchorPos +  neighbourDistances[i] * autoControlLength * dir;
                 }
             }
         }

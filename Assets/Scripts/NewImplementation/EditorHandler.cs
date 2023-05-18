@@ -105,6 +105,11 @@ public class EditorHandler : Editor
         {
             // Draws the selected point and handles
             BezierPoint selectedPoint = _pathPoints[_pointSelected][_indexSelected];
+            
+            /*Debug.Log("Regular");
+            Debug.Log(selectedPoint.localHandles[0]);
+            Debug.Log(selectedPoint.localHandles[1]);*/
+            
             Handles.color = _path.uiParams.handleColor;
             Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints[0], _path.uiParams.handleWidth);
             Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints[1], _path.uiParams.handleWidth);
@@ -117,10 +122,13 @@ public class EditorHandler : Editor
             EditorGUI.BeginChangeCheck();
             Vector3 newPosition = _handleSelected == 0 ? Handles.PositionHandle(selectedPoint.basePoint, Quaternion.identity) : 
                 Handles.PositionHandle(selectedPoint.HandlePoints[(1 - _handleSelected) / 2], Quaternion.identity);
+            
+            
             if (EditorGUI.EndChangeCheck())
             {
                 _dragging = true;
                 Undo.RecordObject(_path, "Changed path parameters");
+                
                 if (_handleSelected == 0)
                 {
                     selectedPoint.basePoint = newPosition;
@@ -132,7 +140,7 @@ public class EditorHandler : Editor
                     {
                         selectedPoint.localHandles[(1 - _handleSelected) / 2] = newPosition - selectedPoint.basePoint;
                         selectedPoint.localHandles[(1 + _handleSelected) / 2] =
-                            selectedPoint.localHandles[(1 + _handleSelected) / 2].magnitude *
+                            -selectedPoint.localHandles[(1 + _handleSelected) / 2].magnitude *
                             (selectedPoint.basePoint - newPosition).normalized;
                     }
                     else
@@ -168,7 +176,7 @@ public class EditorHandler : Editor
         
         if (_clicked)
         {
-            Debug.Log(_point);
+            //Debug.Log(_point);
             bool handleBroken = false;
             if (_pointSelected != -1)
             {
@@ -213,10 +221,7 @@ public class EditorHandler : Editor
                 _pointSelected = -1;
                 _indexSelected = 0;
                 _handleSelected = 0;
-            } 
-
-            /*Debug.Log("Handle Selected: " + _handleSelected);
-            Debug.Log("Point Selected: " + _pointSelected);*/
+            }
         }
         
         
@@ -282,12 +287,17 @@ public class EditorHandler : Editor
             EditorGUILayout.BeginHorizontal();
             selectedPoint.localHandles[0] = 
                 EditorGUILayout.Vector3Field("Local Handle 1: ", RoundVector(selectedPoint.localHandles[0], 2));
-            selectedPoint.localHandles[1] = 
-                EditorGUILayout.Vector3Field("Local Handle 2: ", RoundVector(selectedPoint.localHandles[1], 2));
-            selectedPoint.localHandles[0] = CorrectVector(selectedPoint.localHandles[0], _planeSelected);
-            selectedPoint.localHandles[1] = CorrectVector(selectedPoint.localHandles[0], _planeSelected);
             EditorGUILayout.EndHorizontal();
             
+            EditorGUILayout.BeginHorizontal();
+            selectedPoint.localHandles[1] = 
+                EditorGUILayout.Vector3Field("Local Handle 2: ", RoundVector(selectedPoint.localHandles[1], 2));
+            EditorGUILayout.EndHorizontal();
+
+            selectedPoint.localHandles[0] = CorrectVector(selectedPoint.localHandles[0], _planeSelected);
+            selectedPoint.localHandles[1] = CorrectVector(selectedPoint.localHandles[1], _planeSelected);
+            
+
             EditorGUI.indentLevel -= 2;
         }
         
