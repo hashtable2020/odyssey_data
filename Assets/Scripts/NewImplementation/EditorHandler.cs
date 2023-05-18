@@ -59,6 +59,7 @@ public class EditorHandler : Editor
 
         if (path.uiParams.roadCollider.Raycast(ray, out hitInfo, path.uiParams.maxMouseDistance))
         {
+            //Debug.Log("Collided!");
             //Debug.DrawRay(sceneCamera.transform.position, hitInfo.distance * ray.direction, Color.red, 1);
             worldPoint = hitInfo.point;
             //Debug.Log("Hovering!");
@@ -126,7 +127,19 @@ public class EditorHandler : Editor
                 }
                 else
                 {
-                    selectedPoint.localHandle = (newPosition - selectedPoint.basePoint) * _handleSelected;
+                    selectedPoint.handlesChanged = true;
+                    if (_path.uiParams.handlesSeparate)
+                    {
+                        selectedPoint.localHandles[(1 - _handleSelected) / 2] = newPosition - selectedPoint.basePoint;
+                        selectedPoint.localHandles[(1 + _handleSelected) / 2] =
+                            selectedPoint.localHandles[(1 + _handleSelected) / 2].magnitude *
+                            (selectedPoint.basePoint - newPosition).normalized;
+                    }
+                    else
+                    {
+                        selectedPoint.localHandles[0] = (newPosition - selectedPoint.basePoint) * _handleSelected;
+                        selectedPoint.localHandles[1] = (selectedPoint.basePoint - newPosition) * _handleSelected;
+                    }
                 }
             }
             else
@@ -145,7 +158,9 @@ public class EditorHandler : Editor
         
         // Gets the current mouse position and whether the user has clicked it in this frame
         _point = ClickHandler(_path, out _clicked, out hovering, out tmpKey, out changeKey);
-
+        
+        
+        
         if (changeKey)
         {
             _keyPressed = tmpKey;
@@ -153,6 +168,7 @@ public class EditorHandler : Editor
         
         if (_clicked)
         {
+            Debug.Log(_point);
             bool handleBroken = false;
             if (_pointSelected != -1)
             {
@@ -207,7 +223,7 @@ public class EditorHandler : Editor
         if (_keyPressed != KeyCode.None)
         {
             //Debug.Log(_keyPressed);
-            if (_clicked)
+            if (_clicked && _point != Vector3.down)
             {
                 if (!(_keyPressed != KeyCode.LeftShift && _pointSelected == -1))
                     _path.PointHandler(_keyPressed, _pointSelected, _point);
@@ -261,9 +277,15 @@ public class EditorHandler : Editor
             selectedPoint.basePoint = CorrectVector(selectedPoint.basePoint, _planeSelected);
             
             EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField(new GUIContent("Local Handles: "));
             EditorGUILayout.BeginHorizontal();
-            selectedPoint.localHandle = EditorGUILayout.Vector3Field("Local Handle: ", RoundVector(selectedPoint.localHandle, 2));
-            selectedPoint.localHandle = CorrectVector(selectedPoint.localHandle, _planeSelected);
+            selectedPoint.localHandles[0] = 
+                EditorGUILayout.Vector3Field("Local Handle 1: ", RoundVector(selectedPoint.localHandles[0], 2));
+            selectedPoint.localHandles[1] = 
+                EditorGUILayout.Vector3Field("Local Handle 2: ", RoundVector(selectedPoint.localHandles[1], 2));
+            selectedPoint.localHandles[0] = CorrectVector(selectedPoint.localHandles[0], _planeSelected);
+            selectedPoint.localHandles[1] = CorrectVector(selectedPoint.localHandles[0], _planeSelected);
             EditorGUILayout.EndHorizontal();
             
             EditorGUI.indentLevel -= 2;

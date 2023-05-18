@@ -38,7 +38,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                     BezierPoint[][] tmpPoints = new BezierPoint[pathParams.CoursePoints.Length + 1][];
                     pathParams.CoursePoints.CopyTo(tmpPoints, 0);
                     pathParams.CoursePoints = tmpPoints;
-                    pathParams.CoursePoints[^1] = new[] { new BezierPoint(pos, 0.5f * Vector3.right) };
+                    pathParams.CoursePoints[^1] = new[] { new BezierPoint(pos, new [] {Vector3.zero, Vector3.zero}) };
                 } else if (key == KeyCode.LeftControl)
                 {
                     if (index != -1)
@@ -67,17 +67,25 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                     {
                         centre += point.basePoint;
                     }
+
                     centre /= arrLength;
-                    
+
                     //Debug.Log(centre);
                     //Debug.Log(arrLength);
-                    
-                    Vector3 tangent = (arrLength % 2 == 0) ? 
-                        (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandle +
-                         pathParams.CoursePoints[index][arrLength / 2].localHandle) / 2
-                    : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandle;
+
+                    Vector3[] tangent =
+                    {
+                        (arrLength % 2 == 0)
+                            ? (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[0] +
+                               pathParams.CoursePoints[index][arrLength / 2].localHandles[0]) / 2
+                            : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[0],
+                        (arrLength % 2 == 0)
+                            ? (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[1] +
+                               pathParams.CoursePoints[index][arrLength / 2].localHandles[1]) / 2
+                            : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[1]
+                    };
                     //Debug.Log(tangent);
-                    Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent, Vector3.up));
+                    Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent[0], Vector3.up));
                     
                     //Debug.Log("Normal: " + normal);
 
@@ -117,12 +125,19 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                         }
                         centre /= arrLength;
                     
-                        Vector3 tangent = (arrLength % 2 == 0) ? 
-                            (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandle +
-                             pathParams.CoursePoints[index][arrLength / 2].localHandle) / 2
-                            : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandle;
+                        Vector3[] tangent =
+                        {
+                            (arrLength % 2 == 0)
+                                ? (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[0] +
+                                   pathParams.CoursePoints[index][arrLength / 2].localHandles[0]) / 2
+                                : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[0],
+                            (arrLength % 2 == 0)
+                                ? (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[1] +
+                                   pathParams.CoursePoints[index][arrLength / 2].localHandles[1]) / 2
+                                : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[1]
+                        };
                         //Debug.Log(tangent);
-                        Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent, Vector3.up));
+                        Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent[0], Vector3.up));
                     
                         //Debug.Log("Normal: " + normal);
 
@@ -152,6 +167,24 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                 
             };
             //Refresh += roadMesh.UpdateMesh;
+            Refresh += () =>
+            {
+                Vector3[][] handleLocations = LocalHandleLocations(pathParams.CoursePoints);
+                for (int i = 0; i < pathParams.CoursePoints.Length; i++)
+                {
+                    for (int j = 0; j < pathParams.CoursePoints[i].Length; j++)
+                    {
+                        if (!pathParams.CoursePoints[i][j].handlesChanged)
+                        {
+                            pathParams.CoursePoints[i][j].localHandles = new[]
+                            {
+                                handleLocations[i][2 * j],
+                                handleLocations[i][2 * j + 1],
+                            };
+                        }
+                    }
+                }
+            };
 
             Reset += () =>
             {
@@ -178,49 +211,96 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
     Vector3[][] LocalHandleLocations(BezierPoint[][] coursePoints)
     {
         Vector3[][] newHandleLocations = new Vector3[coursePoints.Length][];
-        for (int i = 0; i < coursePoints.Length + (pathParams.closedLoop ? 0 : -1); i++)
+        for (int i = 0; i < coursePoints.Length; i++)
         {
+            newHandleLocations[i] = new Vector3[2 * coursePoints[i].Length];
             for (int j = 0; j < coursePoints[i].Length; j++)
             {
-                Vector3 dirVector = Vector3.zero;
+                Vector3 dirVector1 = Vector3.zero;
+                Vector3 dirVector2 = Vector3.zero;
+                float[][] neighbourDistances = new float[2][];
+
+                neighbourDistances[0] = new float[coursePoints[LoopIndex(i - 1, coursePoints)].Length];
+                neighbourDistances[1] = new float[coursePoints[LoopIndex(i + 1, coursePoints)].Length];
+                int firstNeighbour = 0;
+                int secondNeighbour = 0;
                 for (int k = 0; k < coursePoints[LoopIndex(i - 1, coursePoints)].Length; k++)
                 {
-                    dirVector += (coursePoints[i - 1][k].basePoint - coursePoints[i][j].basePoint);
+                    Vector3 offset = (coursePoints[LoopIndex(i - 1, coursePoints)][k].basePoint - coursePoints[i][j].basePoint);
+                    dirVector1 += offset.normalized;
+                    neighbourDistances[0][firstNeighbour] = offset.magnitude;
+                    firstNeighbour++;
                 }
                 for (int l = 0; l < coursePoints[LoopIndex(i + 1, coursePoints)].Length; l++)
                 {
-                    dirVector += (coursePoints[i - 1][l].basePoint - coursePoints[i][j].basePoint);
+                    Vector3 offset =(coursePoints[LoopIndex(i + 1, coursePoints)][l].basePoint - coursePoints[i][j].basePoint);
+                    dirVector2 += offset.normalized;
+                    neighbourDistances[1][secondNeighbour] = offset.magnitude;
+                    secondNeighbour++;
                 }
 
-                dirVector = dirVector.normalized;
+                float[] collapsedDistances = new float[2];
+
+                for (int x = 0; x < 2; x++)
+                {
+                    foreach (float dist in neighbourDistances[x])
+                    {
+                        collapsedDistances[x] += dist;
+                    }
+
+                    collapsedDistances[x] /= neighbourDistances[x].Length;
+                }
+
+                dirVector1.Normalize();
+                dirVector2.Normalize();
+                Vector3 normalVector = Vector3.Normalize(Vector3.Cross((dirVector1 + dirVector2), Vector3.up));
+                
+                // Makes sure that the normal vector points towards the start of the path
+                normalVector *= Mathf.Sign(Vector3.Dot(normalVector, dirVector1));
+
+                if (uiParams.handlesSeparate)
+                {
+                    newHandleLocations[i][2 * j] = collapsedDistances[0] * pathParams.controlLength * normalVector;
+                    newHandleLocations[i][2 * j + 1] = - collapsedDistances[1] * pathParams.controlLength * normalVector;
+                }
+                else
+                {
+                    float avgDistance = (collapsedDistances[0] + collapsedDistances[1]) / 2;
+                    newHandleLocations[i][2 * j] = avgDistance * pathParams.controlLength * normalVector;
+                    newHandleLocations[i][2 * j + 1] = -avgDistance * pathParams.controlLength * normalVector;
+                }
             }
         }
+
+        return newHandleLocations;
     }
     
     int LoopIndex(int i, BezierPoint[][] coursePoints)
     {
-        return i % coursePoints.Length;
+        return (i % coursePoints.Length + coursePoints.Length) % coursePoints.Length;
     }
 }
 
 [System.Serializable]
 public class BezierPoint {
     public Vector3 basePoint;
-    public Vector3 localHandle;
+    public Vector3[] localHandles;
+    public bool handlesChanged;
     public Vector3[] HandlePoints
     {
-        get { return new[] { localHandle + basePoint, -localHandle + basePoint }; }
+        get { return new[] { localHandles[0] + basePoint, localHandles[1] + basePoint }; }
     }
     
 
-    public BezierPoint(Vector3 basePoint, Vector3 handle)
+    public BezierPoint(Vector3 basePoint, Vector3[] handles)
     {
         this.basePoint = basePoint;
         // Makes handles relative
-        localHandle = handle;
+        localHandles = handles;
+        handlesChanged = false;
     }
 
-    public static BezierPoint Zero = new BezierPoint(Vector3.zero, Vector3.zero);
+    public static BezierPoint Zero = new BezierPoint(Vector3.zero, new [] {Vector3.zero, Vector3.zero});
 }
 
 [System.Serializable]
@@ -232,11 +312,13 @@ public class PathParams
     public float resolution = 0.05f;
     public bool closedLoop;
     public float splitWidth = 0.1f;
+    public float controlLength = 0.2f;
 }
 
 [System.Serializable]
 public class UIParams
 {
+    public bool handlesSeparate = true;
     public Collider roadCollider;
     public float maxMouseDistance = 1000f;
     public float pointSize = 0.05f;
