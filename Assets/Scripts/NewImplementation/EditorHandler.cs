@@ -1,7 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using Mono.Cecil.Cil;
-using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 
@@ -257,6 +255,8 @@ public class EditorHandler : Editor
             };
             _path.Reset += () => { _pointSelected = -1; };
             _pointSelected = -1;
+
+            _path.Refresh();
         }
 
     }
@@ -383,8 +383,18 @@ public class EditorHandler : Editor
         }
         if (curvePoints.Length == 1)
         {
+            Vector3 diskPos;
+            if (curvePoints[0][0] == null)
+            {
+                diskPos = Vector3.zero;
+            }
+            else
+            {
+                diskPos = curvePoints[0][0].basePoint;
+            }
             Handles.color = _path.uiParams.pointColor;
-            Handles.DrawSolidDisc(curvePoints[0][0].basePoint, Vector3.up, _path.uiParams.pointSize);
+            //Debug.Log(curvePoints[0][0].basePoint);
+            Handles.DrawSolidDisc(diskPos, Vector3.up, _path.uiParams.pointSize);
             return;
         }
         for (int i = 0; i < curvePoints.Length + (_path.pathParams.closedLoop ? 0 : -1); i++)
