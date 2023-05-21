@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Burst.Intrinsics;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
@@ -85,10 +86,6 @@ public class BezierMesh : MonoBehaviour
                         
                         //Debug.DrawLine(rightPoints[0], rightPoints[1], Color.red);
 
-                        int splitAttribute = (points[i].Length > 1)
-                            ? 1
-                            : (points[(i + 1) % points.Length].Length > 1 ? -1 : 0);
-                        
                         tmpLeftVertices.AddRange(leftPoints);
                         tmpRightVertices.AddRange(rightPoints);
                     }
@@ -109,54 +106,54 @@ public class BezierMesh : MonoBehaviour
             leftVertices[i] = tmpLeftVertices;
             rightVertices[i] = tmpRightVertices;
         }
-        
-        Debug.Log(Unpack(leftVertices).Count);
 
         for (int x = 0; x < points.Length + (closedLoop ? 0 : -1); x++)
         {
-            bool broken = false;
-            Vector3[] tmpLeftTriangles = TriangleVertices(leftVertices[x]).ToArray();
-            Vector3[] tmpRightTriangles = TriangleVertices(rightVertices[x]).ToArray();
-            for (int leftT = 0; leftT < tmpLeftTriangles.Length; leftT += 3)
+            if (points[(x + 1) % points.Length].Length > 1 || points[x].Length > 1)
             {
-                for (int rightT = 0; rightT < tmpRightTriangles.Length; rightT += 3)
+                Debug.Log("Culling!");
+                bool broken = false;
+                Vector3[] tmpLeftTriangles = TriangleVertices(leftVertices[x]).ToArray();
+                Vector3[] tmpRightTriangles = TriangleVertices(rightVertices[x]).ToArray();
+                for (int leftT = 0; leftT < tmpLeftTriangles.Length; leftT += 3)
                 {
-                    // If triangles intersect
-                    if (TriangleIntersection(
-                            new[] { tmpLeftTriangles[leftT], tmpLeftTriangles[leftT + 1], tmpLeftTriangles[leftT + 2] },
-                            new[]
-                            {
-                                tmpRightTriangles[rightT], tmpRightTriangles[rightT + 1], tmpRightTriangles[rightT + 2]
-                            }))
+                    for (int rightT = 0; rightT < tmpRightTriangles.Length; rightT += 3)
                     {
-                        if (points[x].Length > 1)
+                        // If triangles intersect
+                        if (TrianglesIntersect(
+                                tmpLeftTriangles[leftT], tmpLeftTriangles[leftT + 1], tmpLeftTriangles[leftT + 2],
+                                tmpRightTriangles[rightT], tmpRightTriangles[rightT + 1], tmpRightTriangles[rightT + 2]))
                         {
-                            leftVertices[x] = SliceArray(leftVertices[x].ToArray(), 0, leftT / 3).ToList();
-                            rightVertices[x] = SliceArray(rightVertices[x].ToArray(), 0, leftT / 3).ToList();
-                            broken = true;
-                            break;
-                        } 
-                        if (points[(x + 1) % points.Length].Length > 1)
-                        {
-                            leftVertices[x] = SliceArray(leftVertices[x].ToArray(), leftT / 3, -1).ToList();
-                            rightVertices[x] = SliceArray(rightVertices[x].ToArray(), leftT / 3, -1).ToList();
-                            broken = true;
-                            break;
+                            Debug.Log("Intersecting!");
+                            Debug.Log(leftT / 3);
+                            Debug.Log(rightT / 3);
+                            if (points[x].Length > 1)
+                            {
+                                leftVertices[x] = SliceArray(leftVertices[x].ToArray(), 0, leftT / 3).ToList();
+                                rightVertices[x] = SliceArray(rightVertices[x].ToArray(), 0, rightT / 3).ToList();
+                                broken = true;
+                                break;
+                            } 
+                            if (points[(x + 1) % points.Length].Length > 1)
+                            {
+                                leftVertices[x] = SliceArray(leftVertices[x].ToArray(), leftT / 3, -1).ToList();
+                                rightVertices[x] = SliceArray(rightVertices[x].ToArray(), rightT / 3, -1).ToList();
+                                broken = true;
+                                break;
+                            }
                         }
                     }
-                }
 
-                if (broken)
-                {
-                    break;
+                    if (broken)
+                    {
+                        break;
+                    }
                 }
             }
-            
         }
         
-        Debug.Log(Unpack(leftVertices).Count);
-        
-             //Debug.Log(tmpLeftVertices.Count);
+
+        //Debug.Log(tmpLeftVertices.Count);
         List<Vector3> triangleLeft = TriangleVertices(Unpack(leftVertices));
         List<Vector3> triangleRight = TriangleVertices(Unpack(rightVertices));
 
@@ -263,7 +260,30 @@ public class BezierMesh : MonoBehaviour
         }
         
         return newIndices;
-    } 
+    }
+
+    bool TrianglesIntersect(Vector3 v0, Vector3 v1, Vector3 v2, Vector3 u0, Vector3 u1, Vector3 u2)
+    {
+        float[] b0 =
+        {
+            Mathf.Min(new[] { v0.x, v1.x, v2.x }) ,
+            Mathf.Min(new [] {v0.z, v1.z, v2.z}),
+            Mathf.Max(new [] {v0.x, v1.x, v2.x}),
+            Mathf.Max(new [] {v0.z, v1.z, v2.z})
+        };
+        float[] b1 =
+        {
+            Mathf.Min(new[] { u0.x, u1.x, u2.x }) ,
+            Mathf.Min(new [] {u0.z, u1.z, u2.z}),
+            Mathf.Max(new [] {u0.x, u1.x, u2.x}),
+            Mathf.Max(new [] {u0.z, u1.z, u2.z})
+        };
+
+        return ((b1[2] > b0[2] && b1[0] < b0[0]) ||
+                (b1[2] < b0[2] && b1[0] > b0[0]) ||
+                (b1[3] > b0[3] && b1[0] < b0[0]) ||
+                (b1[3] < b0[3] && b1[1] > b0[1]));
+    }
 
     // Quick 2D algorithm, no need for fancy 3D stuff
     List<Vector3> TriangleVertices(List<Vector3> vertices)
@@ -277,7 +297,7 @@ public class BezierMesh : MonoBehaviour
         return newVertices;
     }
 
-    bool TriangleIntersection(Vector3[] t1, Vector3[] t2)
+    /*bool TriangleIntersection(Vector3[] t1, Vector3[] t2)
     {
         for (int i = 0; i < t1.Length; i++)
         {
@@ -326,7 +346,7 @@ public class BezierMesh : MonoBehaviour
         float x = (l1[1] - l2[1]) / (l2[0] - l1[0]);
         float z = l1[0] * x + l1[1];
         return new Vector3(x, 0, z);
-    }
+    }*/
 
     void DrawTriangles(List<Vector3> vertices, Color color)
     {
