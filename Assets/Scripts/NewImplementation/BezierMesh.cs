@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,17 +30,19 @@ public class BezierMesh : MonoBehaviour
                     }
                 }
             }
+
             return;
         }
+
         //Debug.Log("Starting mesh initialisation!");
         gameObject.SetActive(false);
 
         if (path == null)
             return;
         BezierPoint[][] points = path.pathParams.CoursePoints;
-        int division = (int) Mathf.Round(1/path.pathParams.resolution);
+        int division = (int)Mathf.Round(1 / path.pathParams.resolution);
         bool closedLoop = path.pathParams.closedLoop;
-        
+
         List<Vector3>[] leftVertices = new List<Vector3>[points.Length + (closedLoop ? 0 : -1)];
         List<Vector3>[] rightVertices = new List<Vector3>[points.Length + (closedLoop ? 0 : -1)];
 
@@ -47,15 +50,17 @@ public class BezierMesh : MonoBehaviour
         {
             List<Vector3> tmpLeftVertices = new List<Vector3>();
             List<Vector3> tmpRightVertices = new List<Vector3>();
+
             for (int j = 0; j < points[i].Length; j++)
             {
                 BezierPoint p1 = points[i][j];
                 for (int k = 0; k < points[(i + 1) % points.Length].Length; k++)
                 {
                     BezierPoint p2 = points[(i + 1) % points.Length][k];
-                    
-                        
-                    Vector3[] bezierPoints = Handles.MakeBezierPoints(p1.basePoint + trackParams.yOffset, p2.basePoint + trackParams.yOffset,
+
+
+                    Vector3[] bezierPoints = Handles.MakeBezierPoints(p1.basePoint + trackParams.yOffset,
+                        p2.basePoint + trackParams.yOffset,
                         p1.HandlePoints[1] + trackParams.yOffset, p2.HandlePoints[0] + trackParams.yOffset, division);
 
                     for (int l = 0; l < bezierPoints.Length; l++)
@@ -73,23 +78,31 @@ public class BezierMesh : MonoBehaviour
 
                         // Going left from the path difference
                         Vector3 normal = Vector3.Normalize(Vector3.Cross(Vector3.up, b - a));
-                        
+
                         Vector3[] leftPoints =
                         {
                             a + (trackParams.roadWidth + trackParams.roadLineWidth) / 2 * normal,
                             a + (trackParams.roadWidth - trackParams.roadLineWidth) / 2 * normal
                         };
-                        Vector3[] rightPoints = {
+                        Vector3[] rightPoints =
+                        {
                             a - (trackParams.roadWidth - trackParams.roadLineWidth) / 2 * normal,
                             a - (trackParams.roadWidth + trackParams.roadLineWidth) / 2 * normal
                         };
-                        
                         //Debug.DrawLine(rightPoints[0], rightPoints[1], Color.red);
 
                         tmpLeftVertices.AddRange(leftPoints);
                         tmpRightVertices.AddRange(rightPoints);
                     }
                     
+                    
+                    
+                    //Debug.DrawLine(lastLeftPoints[0], lastLeftPoints[1], Color.red);
+                    //Debug.DrawLine(lastRightPoints[0], lastRightPoints[1], Color.red);
+                    tmpLeftVertices.Add(Vector3.up);
+                    tmpRightVertices.Add(Vector3.up);
+                    //tmpLeftVertices.AddRange(lastLeftPoints);
+                    //tmpRightVertices.AddRange(lastRightPoints);
                     // Prevents weird path behaviour
 
                     /*int offset = (i == points.Length - 2 && !closedLoop) ? -1 : 0;
@@ -106,79 +119,200 @@ public class BezierMesh : MonoBehaviour
             leftVertices[i] = tmpLeftVertices;
             rightVertices[i] = tmpRightVertices;
         }
+        
 
-        for (int x = 0; x < points.Length + (closedLoop ? 0 : -1); x++)
+        if (points.Length > 2)
         {
-            if (points[(x + 1) % points.Length].Length > 1 || points[x].Length > 1)
+            //Debug.Log(points.Length);
+            for (int a = 0; a < points.Length + (closedLoop ? 0 : -1); a++)
             {
-                Debug.Log("Culling!");
-                bool broken = false;
-                Vector3[] tmpLeftTriangles = TriangleVertices(leftVertices[x]).ToArray();
-                Vector3[] tmpRightTriangles = TriangleVertices(rightVertices[x]).ToArray();
-                for (int leftT = 0; leftT < tmpLeftTriangles.Length; leftT += 3)
+                if (!(a == points.Length + (closedLoop ? 0 : -1) - 1 && !closedLoop))
                 {
-                    for (int rightT = 0; rightT < tmpRightTriangles.Length; rightT += 3)
+                    List<int> firstLeftIndices = FindAllIndices(leftVertices[a], Vector3.up);
+                    List<int> secondLeftIndices = FindAllIndices(leftVertices[(a+1) % leftVertices.Length], Vector3.up);
+                    /*string message = "";
+
+                    foreach (int index in secondLeftIndices)
                     {
-                        // If triangles intersect
-                        if (TrianglesIntersect(
-                                tmpLeftTriangles[leftT], tmpLeftTriangles[leftT + 1], tmpLeftTriangles[leftT + 2],
-                                tmpRightTriangles[rightT], tmpRightTriangles[rightT + 1], tmpRightTriangles[rightT + 2]))
+                        message += index;
+                        message += ", ";
+                    }
+                    
+                    Debug.Log(message);*/
+                    for (int i = 0; i < firstLeftIndices.Count; i++)
+                    {
+                        //Debug.Log(leftVertices[(a+1) % leftVertices.Length].Count);
+                        //Debug.Log(secondLeftIndices[(i-1) % secondLeftIndices.Count] + 1);
+                        if (i == 0)
                         {
-                            Debug.Log("Intersecting!");
-                            Debug.Log(leftT / 3);
-                            Debug.Log(rightT / 3);
-                            if (points[x].Length > 1)
+                            leftVertices[a].InsertRange(firstLeftIndices[i], 
+                                new [] 
+                                {
+                                    leftVertices[(a+1) % leftVertices.Length][0],
+                                    leftVertices[(a+1) % leftVertices.Length][1]
+                                });
+                        }
+                        else
+                        {
+                            if (secondLeftIndices.Count == 1)
                             {
-                                leftVertices[x] = SliceArray(leftVertices[x].ToArray(), 0, leftT / 3).ToList();
-                                rightVertices[x] = SliceArray(rightVertices[x].ToArray(), 0, rightT / 3).ToList();
-                                broken = true;
-                                break;
-                            } 
-                            if (points[(x + 1) % points.Length].Length > 1)
+                                leftVertices[a].InsertRange(firstLeftIndices[i], 
+                                    new [] 
+                                    {
+                                        leftVertices[(a+1) % leftVertices.Length][0],
+                                        leftVertices[(a+1) % leftVertices.Length][1]
+                                    });
+                            }
+                            else
                             {
-                                leftVertices[x] = SliceArray(leftVertices[x].ToArray(), leftT / 3, -1).ToList();
-                                rightVertices[x] = SliceArray(rightVertices[x].ToArray(), rightT / 3, -1).ToList();
-                                broken = true;
-                                break;
+                                leftVertices[a].InsertRange(firstLeftIndices[i], 
+                                    new [] 
+                                    {
+                                        leftVertices[(a+1) % leftVertices.Length][secondLeftIndices[(i-1) % secondLeftIndices.Count] + 1],
+                                        leftVertices[(a+1) % leftVertices.Length][secondLeftIndices[(i-1) % secondLeftIndices.Count] + 2]
+                                    });
+                            }
+                            
+                        }
+                        
+                    }
+                    
+                    List<int> firstRightIndices = FindAllIndices(rightVertices[a], Vector3.up);
+                    List<int> secondRightIndices = FindAllIndices(rightVertices[(a+1) % rightVertices.Length], Vector3.up);
+                    /*string message = "";
+
+                    foreach (int index in secondLeftIndices)
+                    {
+                        message += index;
+                        message += ", ";
+                    }
+                    
+                    Debug.Log(message);*/
+                    for (int i = 0; i < firstRightIndices.Count; i++)
+                    {
+                        //Debug.Log(leftVertices[(a+1) % leftVertices.Length].Count);
+                        //Debug.Log(secondLeftIndices[(i-1) % secondLeftIndices.Count] + 1);
+                        if (i == 0)
+                        {
+                            rightVertices[a].InsertRange(firstRightIndices[i], 
+                                new [] 
+                                {
+                                    rightVertices[(a+1) % rightVertices.Length][0],
+                                    rightVertices[(a+1) % rightVertices.Length][1]
+                                });
+                        }
+                        else
+                        {
+                            if (secondRightIndices.Count == 1)
+                            {
+                                rightVertices[a].InsertRange(firstRightIndices[i], 
+                                    new [] 
+                                    {
+                                        rightVertices[(a+1) % rightVertices.Length][0],
+                                        rightVertices[(a+1) % rightVertices.Length][1]
+                                    });
+                            }
+                            else
+                            {
+                                rightVertices[a].InsertRange(firstRightIndices[i], 
+                                    new [] 
+                                    {
+                                        rightVertices[(a+1) % rightVertices.Length][secondRightIndices[(i-1) % secondRightIndices.Count] + 1],
+                                        rightVertices[(a+1) % rightVertices.Length][secondRightIndices[(i-1) % secondRightIndices.Count] + 2]
+                                    });
+                            }
+                            
+                        }
+                        
+                    }
+                    // Get correct vertices from correct path
+                    //leftVertices[a].AddRange(new [] {leftVertices[(a+1) % leftVertices.Length][0],
+                        //leftVertices[(a+1) % leftVertices.Length][1], Vector3.up});
+                        
+                    // Get correct vertices from correct path
+                    //rightVertices[a].AddRange(new [] {rightVertices[(a+1) % rightVertices.Length][0],
+                        //rightVertices[(a+1) % rightVertices.Length][1], Vector3.up});
+                }
+                //Debug.Log(leftVertices[a].Count);
+            }
+        }
+
+        if (trackParams.cleanSplits)
+        {
+            for (int x = 0; x < points.Length + (closedLoop ? 0 : -1); x++)
+            {
+                if (points[(x + 1) % points.Length].Length > 1 || points[x].Length > 1)
+                {
+                    bool broken = false;
+                    Vector3[] tmpLeftTriangles = TriangleVertices(leftVertices[x]).ToArray();
+                    Vector3[] tmpRightTriangles = TriangleVertices(rightVertices[x]).ToArray();
+                    for (int leftT = 0; leftT < tmpLeftTriangles.Length; leftT += 3)
+                    {
+                        for (int rightT = 0; rightT < tmpRightTriangles.Length; rightT += 3)
+                        {
+                            // If triangles intersect
+                            if (TrianglesIntersect(
+                                    tmpLeftTriangles[leftT], tmpLeftTriangles[leftT + 1], tmpLeftTriangles[leftT + 2],
+                                    tmpRightTriangles[rightT], tmpRightTriangles[rightT + 1], tmpRightTriangles[rightT + 2]))
+                            {
+                                Debug.Log("Intersected!");
+                                //DrawTriangles(new [] {tmpLeftTriangles[leftT], tmpLeftTriangles[leftT + 1], tmpLeftTriangles[leftT + 2],
+                                    //tmpRightTriangles[rightT], tmpRightTriangles[rightT + 1], tmpRightTriangles[rightT + 2]}.ToList(), Color.red);
+                                if (points[x].Length > 1)
+                                {
+                                    int leftIndex = SearchFromIndex(leftVertices[x], leftT / 3, 1, Vector3.up);
+                                    int rightIndex = SearchFromIndex(rightVertices[x], rightT / 3, 1, Vector3.up);
+                                    //Debug.Log(leftIndex);
+                                    
+                                    leftVertices[x].RemoveRange(Mathf.FloorToInt(leftT / 6) * 2, (leftIndex == -1) ? 0 : leftIndex - Mathf.FloorToInt(leftT / 6) * 2);
+                                    rightVertices[x].RemoveRange(Mathf.FloorToInt(rightT / 6) * 2, (rightIndex == -1) ? 0 : rightIndex - Mathf.FloorToInt(rightT / 6) * 2);
+                                    
+                                    broken = true;
+                                    break;
+                                } 
+                                if (points[(x + 1) % points.Length].Length > 1)
+                                {
+                                    int leftIndex = SearchFromIndex(leftVertices[x], leftT / 3, -1, Vector3.up);
+                                    int rightIndex = SearchFromIndex(rightVertices[x], rightT / 3, -1, Vector3.up);
+                                    //Debug.Log(leftIndex);
+                                    
+                                    
+                                    leftVertices[x].RemoveRange((leftIndex == -1) ? 0 : leftIndex, Mathf.FloorToInt(leftT / 6) * 2 - ((leftIndex == -1) ? 0 : leftIndex));
+                                    rightVertices[x].RemoveRange((rightIndex == -1) ? 0 : rightIndex, Mathf.FloorToInt(rightT / 6) * 2 - ((rightIndex == -1) ? 0 : rightIndex));
+                                    
+                                    broken = true;
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    if (broken)
-                    {
-                        break;
+
+                        if (broken)
+                        {
+                            break;
+                        }
                     }
                 }
             }
         }
         
+        
+        //Debug.Log("Left vertices after culling: " + Unpack(leftVertices).Count);
+        
 
         //Debug.Log(tmpLeftVertices.Count);
-        List<Vector3> triangleLeft = TriangleVertices(Unpack(leftVertices));
-        List<Vector3> triangleRight = TriangleVertices(Unpack(rightVertices));
+        List<Vector3> triangleLeft = TriangleCourseVertices(leftVertices);
+        List<Vector3> triangleRight = TriangleCourseVertices(rightVertices);
 
-        //Debug.Log(triangleRight.Count - triangleLeft.Count);
-
-        //DrawTriangles(triangleRight, Color.red);
-        
-        //int leftTriangleCount = triangleLeft.Count;
-        //Debug.Log(leftTriangleCount);
-
-        //Debug.Log("Left num: " + triangleLeft.Count + ", Combined num: " + combinedVertices.Count);
-        
-        
-
-        /*combinedMesh.subMeshCount = 2;
-        
-        System.Collections.Generic.List<int> leftIndices = ReturnIndices(leftTriangleCount);
-        System.Collections.Generic.List<int> rightIndices = ReturnIndices(leftTriangleCount, leftTriangleCount);
-        
-        
-        combinedMesh.SetTriangles(leftIndices, 0, true, 0);
-        combinedMesh.SetTriangles(rightIndices, 1, true, 0);*/
+        //Debug.Log(triangleLeft.Count);
 
         List<int> leftIndices = ReturnIndices(triangleLeft.Count, 0, closedLoop);
         List<int> rightIndices = ReturnIndices(triangleRight.Count, 0, closedLoop);
+        
+        Debug.Log(triangleLeft.Count);
+        Debug.Log(Mathf.Max(leftIndices.ToArray()));
+        
+        //DrawTriangles(triangleLeft, leftIndices, Color.red, 0.1f);
 
         Mesh leftMesh = new Mesh();
         Mesh rightMesh = new Mesh();
@@ -195,6 +329,12 @@ public class BezierMesh : MonoBehaviour
         rightMesh.RecalculateNormals();
         leftMesh.Optimize();
         rightMesh.Optimize();
+
+        /*for (int i = 0; i < leftMesh.normals.Length; i++)
+        {
+            leftMesh.normals[i] = Vector3.up;
+            rightMesh.normals[i] = Vector3.up;
+        }*/
 
         meshFilters[0].mesh = leftMesh;
         meshFilters[1].mesh = rightMesh;
@@ -226,16 +366,59 @@ public class BezierMesh : MonoBehaviour
         return newNormals;
     }*/
 
-    Vector3[] SliceArray(Vector3[] arr, int start, int end)
+    List<int> FindAllIndices(List<Vector3> arr, Vector3 search)
     {
-        int newEnd = (end < 0) ? (arr.Length + end + 1) : end;
-        Vector3[] newArr = new Vector3[newEnd - start];
-        for (int i = start; i < newEnd; i++)
+        List<int> newIndices = new List<int>();
+        for (int i = 0; i < arr.Count; i++)
         {
-            newArr[i - start] = arr[i];
+            if (arr[i] == search)
+            {
+                newIndices.Add(i);
+            }
         }
 
-        return newArr;
+        return newIndices;
+    }
+
+    int SearchFromIndex(List<Vector3> arr, int currentIndex, int occurrence, Vector3 search, bool log=false)
+    {
+        int newOccurrence = occurrence;
+        if (occurrence < 0)
+        {
+            for (int i = currentIndex; i >= 0; i--)
+            {
+                if (log)
+                    Debug.Log(arr[i]);
+                if (arr[i] == search)
+                {
+                    newOccurrence++;
+                }
+
+                if (newOccurrence == 0)
+                {
+                    if (log)
+                        Debug.Log(i);
+                    return i;
+                }
+            }
+        }
+        else
+        {
+            for (int i = currentIndex; i < arr.Count; i++)
+            {
+                if (arr[i] == search)
+                {
+                    newOccurrence--;
+                }
+                
+                if (newOccurrence == 0)
+                {
+                    return i;
+                }
+            }
+        }
+
+        return -1;
     }
 
     List<int> ReturnIndices(int length, int offset = 0, bool closedLoop = false)
@@ -264,34 +447,43 @@ public class BezierMesh : MonoBehaviour
 
     bool TrianglesIntersect(Vector3 v0, Vector3 v1, Vector3 v2, Vector3 u0, Vector3 u1, Vector3 u2)
     {
-        float[] b0 =
-        {
-            Mathf.Min(new[] { v0.x, v1.x, v2.x }) ,
-            Mathf.Min(new [] {v0.z, v1.z, v2.z}),
-            Mathf.Max(new [] {v0.x, v1.x, v2.x}),
-            Mathf.Max(new [] {v0.z, v1.z, v2.z})
-        };
-        float[] b1 =
-        {
-            Mathf.Min(new[] { u0.x, u1.x, u2.x }) ,
-            Mathf.Min(new [] {u0.z, u1.z, u2.z}),
-            Mathf.Max(new [] {u0.x, u1.x, u2.x}),
-            Mathf.Max(new [] {u0.z, u1.z, u2.z})
-        };
+        Bounds b0 = new Bounds(v0, Vector3.zero);
+        b0.Encapsulate(v1);
+        b0.Encapsulate(v2);
+        
+        Bounds b1 = new Bounds(u0, Vector3.zero);
+        b1.Encapsulate(u1);
+        b1.Encapsulate(u2);
 
-        return ((b1[2] > b0[2] && b1[0] < b0[0]) ||
-                (b1[2] < b0[2] && b1[0] > b0[0]) ||
-                (b1[3] > b0[3] && b1[0] < b0[0]) ||
-                (b1[3] < b0[3] && b1[1] > b0[1]));
+        Vector3 p1 = b0.center;
+        Vector3 p2 = b1.center;
+
+        return (p2 - p1).magnitude < 0.05f;
     }
 
     // Quick 2D algorithm, no need for fancy 3D stuff
     List<Vector3> TriangleVertices(List<Vector3> vertices)
     {
-        List<Vector3> newVertices = new System.Collections.Generic.List<Vector3>();
+        List<Vector3> newVertices = new List<Vector3>();
+        Vector3 breakVector = Vector3.up;
         for (int i = 0; i < vertices.Count - 2; i++)
         {
-            newVertices.AddRange(new [] {vertices[i], vertices[i+1], vertices[i+2]});
+            if (!(vertices[i] == breakVector || vertices[i + 1] == breakVector || vertices[i + 2] == breakVector))
+            {
+                newVertices.AddRange(new [] {vertices[i], vertices[i+1], vertices[i+2]});
+            }
+        }
+
+        return newVertices;
+    }
+
+    List<Vector3> TriangleCourseVertices(List<Vector3>[] trackPoints)
+    {
+        List<Vector3> newVertices = new List<Vector3>();
+        foreach (List<Vector3> pathSection in trackPoints)
+        {
+            //Debug.Log(pathSection.Count);
+            newVertices.AddRange(TriangleVertices(pathSection));
         }
 
         return newVertices;
@@ -348,13 +540,23 @@ public class BezierMesh : MonoBehaviour
         return new Vector3(x, 0, z);
     }*/
 
-    void DrawTriangles(List<Vector3> vertices, Color color)
+    void DrawTriangles(List<Vector3> vertices, Color color, float duration=1)
     {
-        for (int i = 0; i < (vertices.Count) / 3; i++)
+        for (int i = 0; i < vertices.Count; i+=3)
         {
-            Debug.DrawLine(vertices[3 * i], vertices[3 * i + 1], color);
-            Debug.DrawLine(vertices[3 * i + 1], vertices[3 * i + 2], color);
-            Debug.DrawLine(vertices[3 * i + 2], vertices[3 * i], color);
+            Debug.DrawLine(vertices[i], vertices[i + 1], color, duration);
+            Debug.DrawLine(vertices[i + 1], vertices[i + 2], color, duration);
+            Debug.DrawLine(vertices[i + 2], vertices[i], color, duration);
+        }
+    }
+
+    void DrawTriangles(List<Vector3> vertices, List<int> indices, Color color, float duration = 1)
+    {
+        for (int i = 0; i < indices.Count; i += 3)
+        {
+            Debug.DrawLine(vertices[indices[i]], vertices[indices[i + 1]], color, duration);
+            Debug.DrawLine(vertices[indices[i + 1]], vertices[indices[i + 2]], color, duration);
+            Debug.DrawLine(vertices[indices[i + 2]], vertices[indices[i]], color, duration);
         }
     }
 
@@ -368,17 +570,6 @@ public class BezierMesh : MonoBehaviour
 
         return newVertices;
     }*/
-
-    List<Vector3> Unpack(List<Vector3>[] arr)
-    {
-        List<Vector3> newArr = new List<Vector3>();
-        foreach (List<Vector3> list in arr)
-        {
-            newArr.AddRange(list);
-        }
-
-        return newArr;
-    }
 
     /*Vector3[] ReturnVertices(MeshVertex[] arr)
     {
@@ -399,6 +590,7 @@ public class RoadParams
     public float roadWidth = 10f;
     public float roadLineWidth = 1f;
     public Vector3 yOffset = 0.005f * Vector3.up;
+    public bool cleanSplits = true;
 }
 
 /*public class MeshVertex
