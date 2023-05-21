@@ -37,15 +37,17 @@ public class EditorHandler : Editor
 
         Camera sceneCamera = SceneView.currentDrawingSceneView.camera;
         
+        //Debug.Log(sceneCamera.scaledPixelHeight - sceneCamera.pixelHeight);
+        
         // Reads from the bottom left, so this line is necessary
-        mousePosition.y = sceneCamera.pixelHeight - mousePosition.y;
+        mousePosition.y = sceneCamera.scaledPixelHeight - mousePosition.y;
         
         Ray ray = sceneCamera.ScreenPointToRay(mousePosition);
-        RaycastHit hitInfo;
+        float distance;
         
         // Null check
 
-        if (path == null || path.uiParams.roadCollider == null)
+        if (path == null)
         {
             clicked = false;
             hover = false;
@@ -54,13 +56,12 @@ public class EditorHandler : Editor
         }
         
         // Checks separately if the mouse is over the road plane and if the mouse has been clicked
-
-        if (path.uiParams.roadCollider.Raycast(ray, out hitInfo, path.uiParams.maxMouseDistance))
+        Plane plane = new Plane(Vector3.up, new Vector3(1, _path.uiParams.yPlane, 1));
+        if (plane.Raycast(ray, out distance))
         {
             //Debug.Log("Collided!");
-            //Debug.DrawRay(sceneCamera.transform.position, hitInfo.distance * ray.direction, Color.red, 1);
-            worldPoint = hitInfo.point;
-            //Debug.Log("Hovering!");
+            Debug.DrawRay(sceneCamera.transform.position, ray.GetPoint(distance), Color.red);
+            worldPoint = ray.GetPoint(distance);
             // If the mouse is hovering over the road collider
             hover = true;
         }
@@ -269,7 +270,11 @@ public class EditorHandler : Editor
         EditorGUI.BeginChangeCheck();
         _planeSelected = EditorGUILayout.Popup("Bezier Path Plane", _planeSelected, _planeOptions);
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField(new GUIContent("Selected Point: "));
+        
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("Selected Point:");
+        EditorGUILayout.IntField(_pointSelected);
+        EditorGUILayout.EndHorizontal();
         // Make point selected appear in Inspector
         if (_pointSelected != -1)
         {
@@ -394,7 +399,8 @@ public class EditorHandler : Editor
             }
             Handles.color = _path.uiParams.pointColor;
             //Debug.Log(curvePoints[0][0].basePoint);
-            Handles.DrawSolidDisc(diskPos, Vector3.up, _path.uiParams.pointSize);
+            
+            Handles.DrawSolidDisc(diskPos, Vector3.up, 0.05f);
             return;
         }
         for (int i = 0; i < curvePoints.Length + (_path.pathParams.closedLoop ? 0 : -1); i++)

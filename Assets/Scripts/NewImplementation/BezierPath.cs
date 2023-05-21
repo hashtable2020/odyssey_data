@@ -29,6 +29,8 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             if (pathParams.CoursePoints == null)
             {
                 pathParams.CoursePoints = new [] {new [] {BezierPoint.Zero}};
+                pathParams = new PathParams();
+                uiParams = new UIParams();
             }
             PointHandler += (key, index, pos) =>
             {
@@ -169,6 +171,8 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             //Refresh += roadMesh.UpdateMesh;
             Refresh += () =>
             {
+                uiParams.roadPlane.position = uiParams.yPlane * Vector3.up;
+                uiParams.roadPlane.rotation = Quaternion.identity;
                 Vector3[][] handleLocations = LocalHandleLocations(pathParams.CoursePoints);
                 for (int i = 0; i < pathParams.CoursePoints.Length; i++)
                 {
@@ -366,8 +370,8 @@ public class PathParams
 public class UIParams
 {
     public bool handlesSeparate = true;
-    public Collider roadCollider;
-    public float maxMouseDistance = 1000f;
+    public Transform roadPlane;
+    public float yPlane = 0;
     public float pointSize = 0.05f;
     public Color pointColor = Color.red;
     public Color handleDiskColor = Color.red;
