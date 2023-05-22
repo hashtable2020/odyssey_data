@@ -190,7 +190,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                         }
                     }
                 }
-                //roadMesh.UpdateMesh();
+                roadMesh.UpdateMesh();
             };
 
             Reset += () =>
