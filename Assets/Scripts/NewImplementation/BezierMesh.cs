@@ -89,6 +89,8 @@ public class BezierMesh : MonoBehaviour
                         tmpLeftVertices.AddRange(leftPoints);
                         tmpRightVertices.AddRange(rightPoints);
                     }
+                    tmpLeftVertices.Add(Vector3.up);
+                    tmpRightVertices.Add(Vector3.up);
                     
                     // Prevents weird path behaviour
 
@@ -107,11 +109,11 @@ public class BezierMesh : MonoBehaviour
             rightVertices[i] = tmpRightVertices;
         }
 
-        for (int x = 0; x < points.Length + (closedLoop ? 0 : -1); x++)
+        /*for (int x = 0; x < points.Length + (closedLoop ? 0 : -1); x++)
         {
             if (points[(x + 1) % points.Length].Length > 1 || points[x].Length > 1)
             {
-                Debug.Log("Culling!");
+                //Debug.Log("Culling!");
                 bool broken = false;
                 Vector3[] tmpLeftTriangles = TriangleVertices(leftVertices[x]).ToArray();
                 Vector3[] tmpRightTriangles = TriangleVertices(rightVertices[x]).ToArray();
@@ -124,7 +126,7 @@ public class BezierMesh : MonoBehaviour
                                 tmpLeftTriangles[leftT], tmpLeftTriangles[leftT + 1], tmpLeftTriangles[leftT + 2],
                                 tmpRightTriangles[rightT], tmpRightTriangles[rightT + 1], tmpRightTriangles[rightT + 2]))
                         {
-                            Debug.Log("Intersecting!");
+                            //Debug.Log("Intersecting!");
                             Debug.Log(leftT / 3);
                             Debug.Log(rightT / 3);
                             if (points[x].Length > 1)
@@ -150,12 +152,12 @@ public class BezierMesh : MonoBehaviour
                     }
                 }
             }
-        }
+        }*/
         
 
         //Debug.Log(tmpLeftVertices.Count);
-        List<Vector3> triangleLeft = TriangleVertices(Unpack(leftVertices));
-        List<Vector3> triangleRight = TriangleVertices(Unpack(rightVertices));
+        List<Vector3> triangleLeft = TriangleVertices(Unpack(leftVertices), Vector3.up);
+        List<Vector3> triangleRight = TriangleVertices(Unpack(rightVertices), Vector3.up);
 
         //Debug.Log(triangleRight.Count - triangleLeft.Count);
 
@@ -267,13 +269,16 @@ public class BezierMesh : MonoBehaviour
         List<int> newIndices = new List<int>();
         for (int i = 0; i < coursePoints.Count; i += 3)
         {
-            if (Vector3.Cross(coursePoints[0] - coursePoints[1], coursePoints[2] - coursePoints[1]).y > 0)
+            if (Vector3.Cross(coursePoints[i] - coursePoints[i+1], coursePoints[i+2] - coursePoints[i+1]).y > 0)
             {
-                newIndices.AddRange(new [] {i, i+1, i+2});
+                //Debug.Log("Clockwise");
+                newIndices.AddRange(new [] {i+2, i+1, i});
             }
             else
             {
-                newIndices.AddRange(new [] {i+2, i+1, i});
+                //Debug.Log("Anti-clockwise");
+                newIndices.AddRange(new [] {i, i+1, i+2});
+                
             }
         }
 
@@ -318,12 +323,13 @@ public class BezierMesh : MonoBehaviour
     }
 
     // Quick 2D algorithm, no need for fancy 3D stuff
-    List<Vector3> TriangleVertices(List<Vector3> vertices)
+    List<Vector3> TriangleVertices(List<Vector3> vertices, Vector3 breakVector)
     {
-        List<Vector3> newVertices = new System.Collections.Generic.List<Vector3>();
+        List<Vector3> newVertices = new List<Vector3>();
         for (int i = 0; i < vertices.Count - 2; i++)
         {
-            newVertices.AddRange(new [] {vertices[i], vertices[i+1], vertices[i+2]});
+            if (!(vertices[i] == breakVector || vertices[i + 1] == breakVector || vertices[i+2] == breakVector))
+                newVertices.AddRange(new [] {vertices[i], vertices[i+1], vertices[i+2]});
         }
 
         return newVertices;

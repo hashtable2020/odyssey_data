@@ -171,6 +171,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             //Refresh += roadMesh.UpdateMesh;
             Refresh += () =>
             {
+                //Debug.Log("Refreshed!");
                 uiParams.roadPlane.position = uiParams.yPlane * Vector3.up;
                 uiParams.roadPlane.rotation = Quaternion.identity;
                 Vector3[][] handleLocations = LocalHandleLocations(pathParams.CoursePoints);
@@ -190,7 +191,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                         }
                     }
                 }
-                roadMesh.UpdateMesh();
+                //roadMesh.UpdateMesh();
             };
 
             Reset += () =>
