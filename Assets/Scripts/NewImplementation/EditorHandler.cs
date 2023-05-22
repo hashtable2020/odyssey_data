@@ -60,7 +60,7 @@ public class EditorHandler : Editor
         if (plane.Raycast(ray, out distance))
         {
             //Debug.Log("Collided!");
-            Debug.DrawRay(sceneCamera.transform.position, ray.GetPoint(distance), Color.red);
+            //Debug.DrawRay(sceneCamera.transform.position, ray.GetPoint(distance), Color.red);
             worldPoint = ray.GetPoint(distance);
             // If the mouse is hovering over the road collider
             hover = true;
