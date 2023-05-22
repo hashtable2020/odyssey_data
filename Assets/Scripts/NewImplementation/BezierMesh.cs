@@ -177,8 +177,8 @@ public class BezierMesh : MonoBehaviour
         combinedMesh.SetTriangles(leftIndices, 0, true, 0);
         combinedMesh.SetTriangles(rightIndices, 1, true, 0);*/
 
-        List<int> leftIndices = ReturnIndices(triangleLeft.Count, 0, closedLoop);
-        List<int> rightIndices = ReturnIndices(triangleRight.Count, 0, closedLoop);
+        List<int> leftIndices = NormalIndices(triangleLeft, closedLoop);
+        List<int> rightIndices = NormalIndices(triangleRight, closedLoop);
 
         Mesh leftMesh = new Mesh();
         Mesh rightMesh = new Mesh();
@@ -238,10 +238,10 @@ public class BezierMesh : MonoBehaviour
         return newArr;
     }
 
-    List<int> ReturnIndices(int length, int offset = 0, bool closedLoop = false)
+    List<int> ReturnIndices(int length, bool closedLoop = false)
     {
         List<int> newIndices = new List<int>();
-        for (int i = offset; i < offset + length; i += 6)
+        for (int i = 0; i < length; i += 6)
         {
             newIndices.AddRange(new [] {i, i + 1, i + 2, i + 5, i + 4, i + 3});
         }
@@ -250,15 +250,47 @@ public class BezierMesh : MonoBehaviour
         {
             newIndices.AddRange(new []
             {
-                offset + length - 2,
-                offset + length - 1,
-                offset,
-                offset + 1,
-                offset,
-                offset + length - 1
+                length - 2,
+                length - 1,
+                0,
+                1,
+                0,
+                length - 1
             });
         }
         
+        return newIndices;
+    }
+
+    List<int> NormalIndices(List<Vector3> coursePoints, bool closedLoop = false)
+    {
+        List<int> newIndices = new List<int>();
+        for (int i = 0; i < coursePoints.Count; i += 3)
+        {
+            if (Vector3.Cross(coursePoints[0] - coursePoints[1], coursePoints[2] - coursePoints[1]).y > 0)
+            {
+                newIndices.AddRange(new [] {i, i+1, i+2});
+            }
+            else
+            {
+                newIndices.AddRange(new [] {i+2, i+1, i});
+            }
+        }
+
+        if (closedLoop)
+        {
+            newIndices.AddRange(
+                new []
+                {
+                    coursePoints.Count - 2,
+                    coursePoints.Count - 1,
+                    0,
+                    1,
+                    0,
+                    coursePoints.Count - 1
+                });
+        }
+
         return newIndices;
     }
 
