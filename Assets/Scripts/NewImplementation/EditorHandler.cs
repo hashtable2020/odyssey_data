@@ -324,10 +324,10 @@ public class EditorHandler : Editor
             _path.Refresh();
         }
 
-        if (GUILayout.Button("Refresh Visuals"))
+        /*if (GUILayout.Button("Refresh Visuals"))
         {
             _path.Refresh();
-        }
+        }*/
 
         if (GUILayout.Button("Update Mesh"))
         {
