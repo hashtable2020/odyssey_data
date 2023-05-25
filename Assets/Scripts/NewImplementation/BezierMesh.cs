@@ -41,6 +41,18 @@ public class BezierMesh : MonoBehaviour
         if (path == null)
             return;
         BezierPoint[][] points = path.pathParams.CoursePoints;
+        if (points.Length <= 1)
+        {
+            meshFilters[0].sharedMesh.Clear();
+            meshFilters[1].sharedMesh.Clear();
+            meshColliders[0].sharedMesh.Clear();
+            meshColliders[1].sharedMesh.Clear();
+            return;
+        }
+        
+        meshColliders[0].enabled = false;
+        meshColliders[1].enabled = false;
+        gameObject.SetActive(true);
         int division = (int)Mathf.Round(1 / path.pathParams.resolution);
         bool closedLoop = path.pathParams.closedLoop;
 
@@ -268,14 +280,13 @@ public class BezierMesh : MonoBehaviour
             rightMesh.normals[i] = Vector3.up;
         }*/
 
-        meshColliders[0].sharedMesh.Clear();
-        meshColliders[1].sharedMesh.Clear();
+        meshFilters[0].sharedMesh = leftMesh;
+        meshFilters[1].sharedMesh = rightMesh;
+        //meshColliders[0].sharedMesh = leftMesh;
+        //meshColliders[1].sharedMesh = rightMesh;
         
-        meshFilters[0].mesh = leftMesh;
-        meshFilters[1].mesh = rightMesh;
-        
-        meshColliders[0].sharedMesh = leftMesh;
-        meshColliders[1].sharedMesh = rightMesh;
+        meshColliders[0].enabled = true;
+        meshColliders[1].enabled = true;
 
         // Edit them after colliders have been set
 
@@ -300,7 +311,7 @@ public class BezierMesh : MonoBehaviour
                             (leftVertices[x][a] + leftVertices[x][a + 1]) / 2;
                         Ray checkingRay = new Ray(avgPoint, direction);
                         
-                        //Debug.DrawRay(avgPoint, direction, Color.red, 1);
+                        Debug.DrawRay(avgPoint, direction, Color.red, 1);
                         RaycastHit hitInfo;
                         float maxDistance = (leftVertices[x].Count - a <= 2)
                             ? (leftVertices[x][a] - leftVertices[x][a - 2]).magnitude
@@ -325,7 +336,7 @@ public class BezierMesh : MonoBehaviour
                             (leftVertices[x][a - 2] + leftVertices[x][a - 1]) / 2 : 
                             (leftVertices[x][a] + leftVertices[x][a + 1]) / 2;
                         Ray checkingRay = new Ray(avgPoint, direction);
-                        //Debug.DrawRay(avgPoint, direction, Color.red, 1);
+                        Debug.DrawRay(avgPoint, direction, Color.red, 1);
                         RaycastHit hitInfo;
                         float maxDistance = (leftVertices[x].Count - a <= 2)
                             ? (leftVertices[x][a] - leftVertices[x][a - 2]).magnitude
