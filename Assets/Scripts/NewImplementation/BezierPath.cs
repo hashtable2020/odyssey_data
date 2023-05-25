@@ -196,6 +196,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             Reset += () =>
             {
                 pathParams.CoursePoints = new[] { new[] { BezierPoint.Zero } };
+                roadMesh.UpdateMesh();
                 Refresh();
             };
         }
