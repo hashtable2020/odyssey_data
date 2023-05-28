@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
 using Unity.Burst.Intrinsics;
 using Unity.MLAgents.Sensors;
 using Unity.VisualScripting;
@@ -241,9 +242,7 @@ public class BezierMesh : MonoBehaviour
 
         List<int> leftIndices = NormalIndices(triangleLeft, closedLoop);
         List<int> rightIndices = NormalIndices(triangleRight, closedLoop);
-        
-        
-        
+
 
         meshFilters[0].mesh = ReturnMesh(triangleLeft, leftIndices);
         meshFilters[1].mesh = ReturnMesh(triangleRight, rightIndices);
@@ -264,21 +263,48 @@ public class BezierMesh : MonoBehaviour
 
         if (trackParams.cleanSplits)
         {
-            StartCoroutine(DetectCollisions(points, leftVertices, rightVertices, closedLoop));
+            List<List<Vector3>[]> combinedVertices = DetectCollisions(points, leftVertices, rightVertices, closedLoop);
+            leftVertices = combinedVertices[0];
+            rightVertices = combinedVertices[1];
+            
+            triangleLeft = TriangleCourseVertices(leftVertices);
+            triangleRight = TriangleCourseVertices(rightVertices);
+
+            //Debug.Log(triangleLeft.Count);
+
+            leftIndices = NormalIndices(triangleLeft, closedLoop);
+            rightIndices = NormalIndices(triangleRight, closedLoop);
+
+
+            meshFilters[0].mesh = ReturnMesh(triangleLeft, leftIndices);
+            meshFilters[1].mesh = ReturnMesh(triangleRight, rightIndices);
+        
+            DestroyImmediate(meshColliders[0]);
+            DestroyImmediate(meshColliders[1]);
+
+            meshColliders[0] = roadObjects[0].AddComponent<MeshCollider>();
+            meshColliders[1] = roadObjects[1].AddComponent<MeshCollider>();
+        
+            meshColliders[0].sharedMesh = null;
+            meshColliders[1].sharedMesh = null;
+        
+            meshColliders[0].sharedMesh = ReturnMesh(triangleLeft, leftIndices);
+            meshColliders[1].sharedMesh = ReturnMesh(triangleRight, rightIndices);
         }
     }
-
-    IEnumerator DetectCollisions(BezierPoint[][] points, List<Vector3>[] leftVertices, List<Vector3>[] rightVertices, bool closedLoop)
+    
+    List<List<Vector3>[]> DetectCollisions(BezierPoint[][] points, List<Vector3>[] leftVertices, List<Vector3>[] rightVertices, bool closedLoop)
     {
-        yield return this;
-        Debug.Log("Detecting collisions!");
+        List<List<Vector3>[]> totalVertices = new List<List<Vector3>[]>();
+        List<Vector3>[] newLeftVertices = leftVertices;
+        List<Vector3>[] newRightVertices = rightVertices;
         for (int x = 0; x < points.Length + (closedLoop ? 0 : -1); x++)
         {
              bool startSplit = points[(x + 1) % points.Length].Length > 1;
              bool endSplit = points[x].Length > 1;
              Vector3 direction = trackParams.rightOffset.y > trackParams.leftOffset.y ? Vector3.up : Vector3.down;
              float maxDistance = Mathf.Abs(20 * (trackParams.rightOffset.y - trackParams.leftOffset.y));
-
+            
              if (startSplit)
              {
                  int firstLeftIndex = SearchFromIndex(leftVertices[x], 0, 1, Vector3.up);
@@ -288,49 +314,68 @@ public class BezierMesh : MonoBehaviour
                      //Debug.Log(leftVertices[x].Count - a);
                      Vector3 avgPoint = leftVertices[x].Count - a == 1 ? 
                          (leftVertices[x][a - 2] + leftVertices[x][a - 1]) / 2 : 
-                         (leftVertices[x][a] + leftVertices[x][a + 1]) / 2;
-                     Ray checkingRay = new Ray(avgPoint, direction);
+                         (leftVertices[x][a] + leftVertices[x][a + 1]) / 2 + maxDistance * direction;
+                     Ray checkingRay = new Ray(avgPoint, -direction);
                      
                      RaycastHit hitInfo;
 
-                     Debug.DrawRay(avgPoint, direction * maxDistance, Color.red, 1);
+                     //Debug.DrawRay(avgPoint, -direction * maxDistance, Color.red, 1);
                      // Checks to see if the right collider is hit
-                     if (Physics.Raycast(checkingRay, out hitInfo, maxDistance))
+                     if (Physics.Raycast(checkingRay, out hitInfo, maxDistance, trackParams.rightMask))
                      {
-                         Debug.Log("Intersected!");
-                         //int rightIndex = SearchFromIndex(rightVertices[x], hitInfo.triangleIndex, -1, Vector3.up);
-                         //leftVertices[x].RemoveRange(firstLeftIndex + 1, a - firstLeftIndex - 1);
-                         //rightVertices[x].RemoveRange(rightIndex, Mathf.Floor((hitInfo.triangleIndex - rightIndex) / 2) * 2);
+                         //Debug.Log("Intersected!");
+                         //Debug.DrawLine(avgPoint, avgPoint - maxDistance * direction, Color.red, 1);
+                         int rightIndexA = SearchClosest(rightVertices[x], 1, hitInfo.point);
+                         int rightIndexB = SearchFromIndex(rightVertices[x], rightIndexA, -1, Vector3.up);
+                         rightIndexB = rightIndexB == -1 ? 0 : rightIndexB;
+                         //Debug.DrawRay(rightVertices[x][rightIndexA], Vector3.up, Color.red, 1);
+                         //Debug.DrawRay(hitInfo.point, Vector3.up, Color.red, 1);
+                         newLeftVertices[x].RemoveRange(firstLeftIndex + 1, a - firstLeftIndex - 1);
+                         newRightVertices[x].RemoveRange(rightIndexB, (int) Mathf.Floor((rightIndexA - rightIndexB) / 2) * 2);
                          break;
                      }
                      
                  }
              } else if (endSplit)
              {
-                 int firstLeftIndex = SearchFromIndex(leftVertices[x], leftVertices[x].Count - 1, -1, Vector3.up);
-                 int secondLeftIndex = SearchFromIndex(leftVertices[x], leftVertices[x].Count - 1, -2, Vector3.up);
+                 int firstLeftIndex = SearchFromIndex(leftVertices[x], 0, 2, Vector3.up);
+                 int secondLeftIndex = SearchFromIndex(leftVertices[x], 0, 1, Vector3.up);
                  for (int a = firstLeftIndex - 1; a > secondLeftIndex; a -= 2)
                  {
                      Vector3 avgPoint = (leftVertices[x].Count - a == 1) ? 
                          (leftVertices[x][a - 2] + leftVertices[x][a - 1]) / 2 : 
-                         (leftVertices[x][a] + leftVertices[x][a + 1]) / 2;
-                     Ray checkingRay = new Ray(avgPoint, direction);
+                         (leftVertices[x][a] + leftVertices[x][a + 1]) / 2 + maxDistance * direction;
+                     Ray checkingRay = new Ray(avgPoint, -direction);
                      
                      RaycastHit hitInfo;
-                     Debug.DrawRay(avgPoint, direction * maxDistance, Color.red, 1);
+                     //Debug.DrawRay(avgPoint, -direction * maxDistance, Color.red, 1);
                      
                      // Checks to see if the right collider is hit
-                     if (meshColliders[1].Raycast(checkingRay, out hitInfo, maxDistance))
+                     if (Physics.Raycast(checkingRay, out hitInfo, maxDistance, trackParams.rightMask))
                      {
-                         Debug.Log("Intersected!");
-                         //int rightIndex = SearchFromIndex(rightVertices[x], hitInfo.triangleIndex, 1, Vector3.up);
-                         //leftVertices[x].RemoveRange(a, firstLeftIndex - a);
-                         //rightVertices[x].RemoveRange(Mathf.Floor((hitInfo.triangleIndex - rightIndex) / 2) * 2 + rightIndex, Mathf.Floor((rightIndex - hitInfo.triangleIndex) / 2) * 2);
+                         //Debug.Log("Intersected!");
+                         int rightIndexA = SearchClosest(rightVertices[x], -1, hitInfo.point);
+                         int rightIndexB = SearchFromIndex(rightVertices[x], rightIndexA, 1, Vector3.up);
+                         rightIndexB = rightIndexB == -1 ? 0 : rightIndexB;
+                         //Debug.Log(rightIndexA);
+                         //Debug.Log(rightIndexB);
+                         
+                         rightIndexA = (rightIndexB - rightIndexA) % 2 == 1 ? rightIndexA : rightIndexA + 1;
+
+
+                         //Debug.DrawRay(rightVertices[x][rightIndexA], Vector3.up, Color.red, 1);
+                         //Debug.DrawRay(hitInfo.point, Vector3.up, Color.red, 1);
+                         newLeftVertices[x].RemoveRange(a, firstLeftIndex - a);
+                         newRightVertices[x].RemoveRange(rightIndexA, rightIndexB - rightIndexA);
                          break;
                      }
                  }
              }
         }
+        totalVertices.Add(newLeftVertices);
+        totalVertices.Add(newRightVertices);
+
+        return totalVertices;
     }
 
     Mesh ReturnMesh(List<Vector3> vertices, List<int> indices)
@@ -359,45 +404,54 @@ public class BezierMesh : MonoBehaviour
         return newIndices;
     }
 
-    int SearchFromIndex(List<Vector3> arr, int currentIndex, int occurrence, Vector3 search, bool log=false)
+    int SearchFromIndex(List<Vector3> arr, int currentIndex, int occurrence, Vector3 search)
     {
         int newOccurrence = occurrence;
-        if (occurrence < 0)
+        int index = currentIndex;
+        while (true)
         {
-            for (int i = currentIndex; i >= 0; i--)
+            if (newOccurrence != 0)
             {
-                if (log)
-                    Debug.Log(arr[i]);
-                if (arr[i] == search)
-                {
-                    newOccurrence++;
-                }
-
-                if (newOccurrence == 0)
-                {
-                    if (log)
-                        Debug.Log(i);
-                    return i;
-                }
-            }
-        }
-        else
-        {
-            for (int i = currentIndex; i < arr.Count; i++)
-            {
-                if (arr[i] == search)
-                {
-                    newOccurrence--;
-                }
+                index += occurrence > 0 ? 1 : -1;
                 
-                if (newOccurrence == 0)
+                if (index < 0 || index >= arr.Count)
                 {
-                    return i;
+                    return -1;
+                }
+                //Debug.Log(arr[index]);
+                if (arr[index] == search)
+                {
+                    newOccurrence += occurrence > 0 ? -1 : 1;
                 }
             }
+            else
+            {
+                return index;
+            }
         }
+    }
 
-        return -1;
+    int SearchClosest(List<Vector3> arr, int direction, Vector3 pos, float threshold = 0.05f)
+    {
+        int index = direction == 1 ? 0 : arr.Count - 1;
+        float smallestDistance = 1000;
+        while (true)
+        {
+            if ((arr[index] - pos).magnitude <= threshold)
+            {
+                return index;
+            }
+
+            smallestDistance = ((arr[index] - pos).magnitude < smallestDistance)
+                ? (arr[index] - pos).magnitude
+                : smallestDistance;
+            
+            if (index < 0 || index >= arr.Count)
+            {
+                return index - direction;
+            }
+            index += direction;
+        }
     }
 
     List<int> NormalIndices(List<Vector3> coursePoints, bool closedLoop = false)
@@ -507,4 +561,6 @@ public class RoadParams
     public Vector3 leftOffset = 0.005f * Vector3.up;
     public Vector3 rightOffset = 0.006f * Vector3.up;
     public bool cleanSplits = true;
+    public LayerMask leftMask = 1 << 9;
+    public LayerMask rightMask = 1 << 10 ;
 }
