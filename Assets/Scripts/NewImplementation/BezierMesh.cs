@@ -293,6 +293,7 @@ public class BezierMesh : MonoBehaviour
         }
     }
     
+    // Doesn't work when vertices are flipped
     List<List<Vector3>[]> DetectCollisions(BezierPoint[][] points, List<Vector3>[] leftVertices, List<Vector3>[] rightVertices, bool closedLoop)
     {
         List<List<Vector3>[]> totalVertices = new List<List<Vector3>[]>();
@@ -304,7 +305,7 @@ public class BezierMesh : MonoBehaviour
              bool endSplit = points[x].Length > 1;
              Vector3 direction = trackParams.rightOffset.y > trackParams.leftOffset.y ? Vector3.up : Vector3.down;
              float maxDistance = Mathf.Abs(20 * (trackParams.rightOffset.y - trackParams.leftOffset.y));
-            
+
              if (startSplit)
              {
                  int firstLeftIndex = SearchFromIndex(leftVertices[x], 0, 1, Vector3.up);
@@ -329,7 +330,6 @@ public class BezierMesh : MonoBehaviour
                          int rightIndexB = SearchFromIndex(rightVertices[x], rightIndexA, -1, Vector3.up);
                          rightIndexB = rightIndexB == -1 ? 0 : rightIndexB;
                          //Debug.DrawRay(rightVertices[x][rightIndexA], Vector3.up, Color.red, 1);
-                         //Debug.DrawRay(hitInfo.point, Vector3.up, Color.red, 1);
                          newLeftVertices[x].RemoveRange(firstLeftIndex + 1, a - firstLeftIndex - 1);
                          newRightVertices[x].RemoveRange(rightIndexB, (int) Mathf.Floor((rightIndexA - rightIndexB) / 2) * 2);
                          break;
@@ -414,9 +414,13 @@ public class BezierMesh : MonoBehaviour
             {
                 index += occurrence > 0 ? 1 : -1;
                 
-                if (index < 0 || index >= arr.Count)
+                if (index < 0)
                 {
-                    return -1;
+                    return 0;
+                }
+                if (index >= arr.Count)
+                {
+                    return arr.Count - 1;
                 }
                 //Debug.Log(arr[index]);
                 if (arr[index] == search)
@@ -431,10 +435,19 @@ public class BezierMesh : MonoBehaviour
         }
     }
 
-    int SearchClosest(List<Vector3> arr, int direction, Vector3 pos, float threshold = 0.05f)
+    int SearchClosest(List<Vector3> arr, int direction, Vector3 pos, float threshold = 0.005f)
     {
+        if (arr.Count == 0)
+        {
+            return 0;
+        } 
+        if (arr.Count == 1)
+        {
+            return 0;
+        }
         int index = direction == 1 ? 0 : arr.Count - 1;
-        float smallestDistance = 1000;
+        float smallestDistance = (arr[index] - pos).magnitude;
+        int smallestIndex = index;
         while (true)
         {
             if ((arr[index] - pos).magnitude <= threshold)
@@ -442,15 +455,18 @@ public class BezierMesh : MonoBehaviour
                 return index;
             }
 
-            smallestDistance = ((arr[index] - pos).magnitude < smallestDistance)
-                ? (arr[index] - pos).magnitude
-                : smallestDistance;
-            
-            if (index < 0 || index >= arr.Count)
+            if ((arr[index] - pos).magnitude < smallestDistance)
             {
-                return index - direction;
+                smallestDistance = (arr[index] - pos).magnitude;
+                smallestIndex = index;
             }
             index += direction;
+
+            if (index < 0 || index >= arr.Count)
+            {
+                return smallestIndex;
+            }
+            
         }
     }
 

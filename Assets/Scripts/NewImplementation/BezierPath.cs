@@ -359,12 +359,16 @@ public class BezierPoint {
 public class PathParams
 {
     public BezierPoint[][] CoursePoints = {new [] {BezierPoint.Zero}};
-    
-    
+
     public float resolution = 0.05f;
     public bool closedLoop;
     public float splitWidth = 0.1f;
     public float controlLength = 0.2f;
+    public float obstacleProb = 0.02f;
+    public Object obstaclePrefab;
+    public Object maskedObstaclePrefab;
+    public Transform obstacleObj;
+    public Transform maskedObstacleObj;
 }
 
 [System.Serializable]

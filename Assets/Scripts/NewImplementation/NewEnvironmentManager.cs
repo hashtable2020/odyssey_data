@@ -4,8 +4,9 @@ using UnityEngine;
 
 public class NewEnvironmentManager : MonoBehaviour
 {
-    // Change lighting, texture and obstacle placement
+    // Change lighting and texture
     // Start is called before the first frame update
+
     void Start()
     {
         

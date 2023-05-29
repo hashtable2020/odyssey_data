@@ -97,6 +97,7 @@ public class EditorHandler : Editor
     }
     void OnSceneGUI()
     {
+        DrawBezierDisplay(_path.pathParams.CoursePoints);
         // Defines new variable for later
         _pathPoints = _path.pathParams.CoursePoints;
         Selection.activeObject = target;
@@ -148,6 +149,7 @@ public class EditorHandler : Editor
                         selectedPoint.localHandles[1] = (selectedPoint.basePoint - newPosition) * _handleSelected;
                     }
                 }
+                _path.Refresh();
             }
             else
             {
@@ -235,10 +237,11 @@ public class EditorHandler : Editor
                 {
                     _pointSelected = -1;
                 }
+                _path.Refresh();
             }
         }
 
-        _path.Refresh();
+        //_path.Refresh();
     }
 
     void OnEnable()
@@ -249,10 +252,27 @@ public class EditorHandler : Editor
         Tools.hidden = true;
         if (_path != null)
         {
+            foreach (Transform child in _path.pathParams.obstacleObj)
+            {
+                DestroyImmediate(child.gameObject);
+            }
+            foreach (Transform child in _path.pathParams.maskedObstacleObj)
+            {
+                DestroyImmediate(child.gameObject);
+            }
             _pathPoints = _path.pathParams.CoursePoints;
             _path.Refresh += () =>
             {
-                DrawBezierDisplay(_pathPoints);
+                foreach (Transform child in _path.pathParams.obstacleObj)
+                {
+                    DestroyImmediate(child.gameObject);
+                }
+                foreach (Transform child in _path.pathParams.maskedObstacleObj)
+                {
+                    DestroyImmediate(child.gameObject);
+                }
+                
+                SpawnObstacles(_pathPoints);
             };
             _path.Reset += () => { _pointSelected = -1; };
             _pointSelected = -1;
@@ -321,13 +341,12 @@ public class EditorHandler : Editor
         if (GUILayout.Button("Reset Path"))
         {
             _path.Reset();
-            _path.Refresh();
         }
 
-        /*if (GUILayout.Button("Refresh Visuals"))
+        if (GUILayout.Button("Refresh Visuals"))
         {
             _path.Refresh();
-        }*/
+        }
 
         if (GUILayout.Button("Update Mesh"))
         {
@@ -336,7 +355,7 @@ public class EditorHandler : Editor
         
         serializedObject.ApplyModifiedProperties();
         Repaint();
-        _path.Refresh();
+        //_path.Refresh();
     }
 
     float RoundFloat(float x, int n)
@@ -472,5 +491,65 @@ public class EditorHandler : Editor
                 _path.uiParams.normalWidth,
                 _path.uiParams.offsetWidth,
                 Mathf.RoundToInt(1 / _path.pathParams.resolution));
+    }
+
+    void SpawnObstacles(BezierPoint[][] curvePoints)
+    {
+        foreach (Transform child in _path.pathParams.obstacleObj)
+        {
+           DestroyImmediate(child.gameObject);
+        }
+        foreach (Transform child in _path.pathParams.maskedObstacleObj)
+        {
+            DestroyImmediate(child.gameObject);
+        }
+        if (_path == null || curvePoints.Length == 0)
+        {
+            return;
+        }
+        if (curvePoints.Length == 1)
+        {
+            return;
+        }
+        for (int i = 0; i < curvePoints.Length + (_path.pathParams.closedLoop ? 0 : -1); i++)
+        {
+            for (int j = 0; j < curvePoints[i].Length; j++)
+            {
+                for (int k = 0; k < curvePoints[LoopIndex(i+1, curvePoints)].Length; k++)
+                {
+                    Handles.color = _path.uiParams.normalColor;
+                    Vector3[] normalPoints = Handles.MakeBezierPoints(
+                        curvePoints[i][j].basePoint,
+                        curvePoints[LoopIndex(i+1, curvePoints)][k].basePoint,
+                        curvePoints[i][j].HandlePoints[1],
+                        curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints[0],
+                        Mathf.RoundToInt(1 / _path.pathParams.resolution));
+                    
+                    for (int l = 0; l < normalPoints.Length - 1; l++)
+                    {
+                        Vector3 diff = normalPoints[l + 1] - normalPoints[l];
+                        Vector3 localNormal = Vector3.Normalize(Vector3.Cross(diff, Vector3.up));
+
+                        if (Random.value < _path.pathParams.obstacleProb)
+                        {
+                            float newRandom = Random.value * 2 - 1;
+                            Instantiate(_path.pathParams.obstaclePrefab, normalPoints[l] + newRandom * _path.roadMesh.trackParams.roadWidth / 2 * localNormal, 
+                                Quaternion.identity, _path.pathParams.obstacleObj);
+                            Instantiate(_path.pathParams.maskedObstaclePrefab, normalPoints[l] + newRandom * _path.roadMesh.trackParams.roadWidth / 2 * localNormal, 
+                                Quaternion.identity, _path.pathParams.maskedObstacleObj);
+                        }
+                    }
+                } 
+            }
+        }
+        
+        Handles.color = _path.uiParams.pointColor;
+        foreach (BezierPoint[] path in curvePoints)
+        {
+            foreach (BezierPoint point in path)
+            {
+                Handles.DrawSolidDisc(point.basePoint, Vector3.up, _path.uiParams.pointSize);
+            }
+        }
     }
 }
