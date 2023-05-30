@@ -331,6 +331,7 @@ public class EditorHandler : Editor
 
         if (EditorGUI.EndChangeCheck())
         {
+            _path.roadMesh.UpdateMesh();
             _path.StartCoroutine(UpdateMaskMode());
         }
 
