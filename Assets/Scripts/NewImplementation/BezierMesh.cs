@@ -16,6 +16,7 @@ public class BezierMesh : MonoBehaviour
     // Create mesh
     public BezierPath path;
     public MeshFilter[] meshFilters;
+    public MeshRenderer[] meshRenderers;
     public MeshCollider[] meshColliders;
     public GameObject[] roadObjects;
     public RoadParams trackParams;
@@ -259,6 +260,17 @@ public class BezierMesh : MonoBehaviour
         meshColliders[0].sharedMesh = ReturnMesh(triangleLeft, leftIndices);
         meshColliders[1].sharedMesh = ReturnMesh(triangleRight, rightIndices);
 
+        if (path.uiParams.maskMode)
+        {
+            meshRenderers[0].material = trackParams.leftMaskMat;
+            meshRenderers[1].material = trackParams.rightMaskMat;
+        }
+        else
+        {
+            meshRenderers[0].material = trackParams.leftRoadMat;
+            meshRenderers[1].material = trackParams.rightRoadMat;
+        }
+        
         // Edit them after colliders have been set
 
         if (trackParams.cleanSplits)
@@ -502,22 +514,6 @@ public class BezierMesh : MonoBehaviour
         return newIndices;
     }
 
-    bool TrianglesIntersect(Vector3 v0, Vector3 v1, Vector3 v2, Vector3 u0, Vector3 u1, Vector3 u2)
-    {
-        Bounds b0 = new Bounds(v0, Vector3.zero);
-        b0.Encapsulate(v1);
-        b0.Encapsulate(v2);
-        
-        Bounds b1 = new Bounds(u0, Vector3.zero);
-        b1.Encapsulate(u1);
-        b1.Encapsulate(u2);
-
-        Vector3 p1 = b0.center;
-        Vector3 p2 = b1.center;
-
-        return (p2 - p1).magnitude < 0.001f;
-    }
-
     // Quick 2D algorithm, no need for fancy 3D stuff
     List<Vector3> TriangleVertices(List<Vector3> vertices)
     {
@@ -579,4 +575,8 @@ public class RoadParams
     public bool cleanSplits = true;
     public LayerMask leftMask = 1 << 9;
     public LayerMask rightMask = 1 << 10 ;
+    public Material leftRoadMat;
+    public Material rightRoadMat;
+    public Material leftMaskMat;
+    public Material rightMaskMat;
 }

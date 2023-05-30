@@ -197,7 +197,6 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             {
                 pathParams.CoursePoints = new[] { new[] { BezierPoint.Zero } };
                 roadMesh.UpdateMesh();
-                Refresh();
             };
         }
     }
@@ -365,6 +364,7 @@ public class PathParams
     public float splitWidth = 0.1f;
     public float controlLength = 0.2f;
     public float obstacleProb = 0.02f;
+    public float obstacleScale = 0.75f;
     public Object obstaclePrefab;
     public Object maskedObstaclePrefab;
     public Transform obstacleObj;
@@ -374,6 +374,7 @@ public class PathParams
 [System.Serializable]
 public class UIParams
 {
+    public bool maskMode;
     public bool handlesSeparate = true;
     public Transform roadPlane;
     public float yPlane = 0;

@@ -252,29 +252,17 @@ public class EditorHandler : Editor
         Tools.hidden = true;
         if (_path != null)
         {
-            foreach (Transform child in _path.pathParams.obstacleObj)
-            {
-                DestroyImmediate(child.gameObject);
-            }
-            foreach (Transform child in _path.pathParams.maskedObstacleObj)
-            {
-                DestroyImmediate(child.gameObject);
-            }
+            ClearObstacles();
             _pathPoints = _path.pathParams.CoursePoints;
             _path.Refresh += () =>
             {
-                foreach (Transform child in _path.pathParams.obstacleObj)
-                {
-                    DestroyImmediate(child.gameObject);
-                }
-                foreach (Transform child in _path.pathParams.maskedObstacleObj)
-                {
-                    DestroyImmediate(child.gameObject);
-                }
-                
                 SpawnObstacles(_pathPoints);
             };
-            _path.Reset += () => { _pointSelected = -1; };
+            _path.Reset += () =>
+            {
+                _pointSelected = -1; 
+                ClearObstacles();
+            };
             _pointSelected = -1;
 
             _path.Refresh();
@@ -334,9 +322,16 @@ public class EditorHandler : Editor
         EditorGUILayout.EndHorizontal();
         
         EditorGUILayout.Space();
+        
+        EditorGUI.BeginChangeCheck();
 
         EditorGUILayout.PropertyField(_parameters[0], new GUIContent("Path Parameters"));
         EditorGUILayout.PropertyField(_parameters[1], new GUIContent("UI Parameters"));
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            _path.Refresh();
+        }
 
         if (GUILayout.Button("Reset Path"))
         {
@@ -346,6 +341,11 @@ public class EditorHandler : Editor
         if (GUILayout.Button("Refresh Visuals"))
         {
             _path.Refresh();
+        }
+
+        if (GUILayout.Button("Clear Obstacles"))
+        {
+            ClearObstacles();
         }
 
         if (GUILayout.Button("Update Mesh"))
@@ -495,14 +495,7 @@ public class EditorHandler : Editor
 
     void SpawnObstacles(BezierPoint[][] curvePoints)
     {
-        foreach (Transform child in _path.pathParams.obstacleObj)
-        {
-           DestroyImmediate(child.gameObject);
-        }
-        foreach (Transform child in _path.pathParams.maskedObstacleObj)
-        {
-            DestroyImmediate(child.gameObject);
-        }
+        ClearObstacles();
         if (_path == null || curvePoints.Length == 0)
         {
             return;
@@ -533,23 +526,38 @@ public class EditorHandler : Editor
                         if (Random.value < _path.pathParams.obstacleProb)
                         {
                             float newRandom = Random.value * 2 - 1;
-                            Instantiate(_path.pathParams.obstaclePrefab, normalPoints[l] + newRandom * _path.roadMesh.trackParams.roadWidth / 2 * localNormal, 
-                                Quaternion.identity, _path.pathParams.obstacleObj);
-                            Instantiate(_path.pathParams.maskedObstaclePrefab, normalPoints[l] + newRandom * _path.roadMesh.trackParams.roadWidth / 2 * localNormal, 
-                                Quaternion.identity, _path.pathParams.maskedObstacleObj);
+                            Quaternion randomRotation = Quaternion.Euler(0, Random.value * 360, 0);
+                            Vector3 offset = 0.03f * Vector3.up;
+                            GameObject obsObj = Instantiate(_path.pathParams.obstaclePrefab, normalPoints[l] + offset + newRandom * _path.roadMesh.trackParams.roadWidth / 2 * localNormal, 
+                                randomRotation, _path.pathParams.obstacleObj) as GameObject;
+                            GameObject maskedObsObj = Instantiate(_path.pathParams.maskedObstaclePrefab, normalPoints[l] + offset + newRandom * _path.roadMesh.trackParams.roadWidth / 2 * localNormal, 
+                                randomRotation, _path.pathParams.maskedObstacleObj) as GameObject;
+
+                            if (obsObj != null && maskedObsObj != null)
+                            {
+                                Vector3 scaleVector = _path.roadMesh.trackParams.roadWidth * _path.pathParams.obstacleScale * Vector3.one;
+                                obsObj.transform.localScale = scaleVector;
+                                maskedObsObj.transform.localScale = scaleVector;
+                            }
                         }
                     }
                 } 
             }
         }
-        
-        Handles.color = _path.uiParams.pointColor;
-        foreach (BezierPoint[] path in curvePoints)
+        _path.pathParams.obstacleObj.gameObject.SetActive(!_path.uiParams.maskMode);
+        _path.pathParams.maskedObstacleObj.gameObject.SetActive(_path.uiParams.maskMode);
+    }
+
+    void ClearObstacles()
+    {
+        while (_path.pathParams.obstacleObj.childCount > 0)
         {
-            foreach (BezierPoint point in path)
-            {
-                Handles.DrawSolidDisc(point.basePoint, Vector3.up, _path.uiParams.pointSize);
-            }
+            DestroyImmediate(_path.pathParams.obstacleObj.GetChild(0).gameObject);
+        }
+
+        while (_path.pathParams.maskedObstacleObj.childCount > 0)
+        {
+            DestroyImmediate(_path.pathParams.maskedObstacleObj.GetChild(0).gameObject);
         }
     }
 }
