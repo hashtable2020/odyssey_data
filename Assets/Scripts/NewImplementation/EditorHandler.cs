@@ -111,17 +111,17 @@ public class EditorHandler : Editor
             Debug.Log(selectedPoint.localHandles[1]);*/
             
             Handles.color = _path.uiParams.handleColor;
-            Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints[0], _path.uiParams.handleWidth);
-            Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints[1], _path.uiParams.handleWidth);
+            Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints()[0], _path.uiParams.handleWidth);
+            Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints()[1], _path.uiParams.handleWidth);
             Handles.color = _path.uiParams.handleDiskColor;
-            Handles.DrawSolidDisc(selectedPoint.HandlePoints[0], Vector3.up, _path.uiParams.handleSize);
-            Handles.DrawSolidDisc(selectedPoint.HandlePoints[1], Vector3.up, _path.uiParams.handleSize);
+            Handles.DrawSolidDisc(selectedPoint.HandlePoints()[0], Vector3.up, _path.uiParams.handleSize);
+            Handles.DrawSolidDisc(selectedPoint.HandlePoints()[1], Vector3.up, _path.uiParams.handleSize);
             
             
             // Checks if any of them have been dragged
             EditorGUI.BeginChangeCheck();
             Vector3 newPosition = _handleSelected == 0 ? Handles.PositionHandle(selectedPoint.basePoint, Quaternion.identity) : 
-                Handles.PositionHandle(selectedPoint.HandlePoints[(1 - _handleSelected) / 2], Quaternion.identity);
+                Handles.PositionHandle(selectedPoint.HandlePoints()[(1 - _handleSelected) / 2], Quaternion.identity);
             
             
             if (EditorGUI.EndChangeCheck())
@@ -182,10 +182,10 @@ public class EditorHandler : Editor
             if (_pointSelected != -1)
             {
                 BezierPoint point = _pathPoints[_pointSelected][_indexSelected];
-                for (int i = 0; i < point.HandlePoints.Length; i++)
+                for (int i = 0; i < point.HandlePoints().Length; i++)
                 {
-                    //Debug.Log("Index: " + i + ", Distance: " + Vector3.Distance(_point, point.HandlePoints[i]));
-                    if (Vector3.Distance(_point, point.HandlePoints[i]) <= _path.uiParams.handleSize)
+                    //Debug.Log("Index: " + i + ", Distance: " + Vector3.Distance(_point, point.HandlePoints()[i]));
+                    if (Vector3.Distance(_point, point.HandlePoints()[i]) <= _path.uiParams.handleSize)
                     {
                         _handleSelected = 1 - 2 * i;
                         handleBroken = true;
@@ -253,6 +253,7 @@ public class EditorHandler : Editor
         if (_path != null)
         {
             ClearObstacles();
+            _path.StartCoroutine(UpdateMaskMode());
             _pathPoints = _path.pathParams.CoursePoints;
             _path.Refresh += () =>
             {
@@ -330,7 +331,7 @@ public class EditorHandler : Editor
 
         if (EditorGUI.EndChangeCheck())
         {
-            _path.Refresh();
+            _path.StartCoroutine(UpdateMaskMode());
         }
 
         if (GUILayout.Button("Reset Path"))
@@ -341,6 +342,7 @@ public class EditorHandler : Editor
         if (GUILayout.Button("Refresh Visuals"))
         {
             _path.Refresh();
+            _path.StartCoroutine(UpdateMaskMode());
         }
 
         if (GUILayout.Button("Clear Obstacles"))
@@ -430,8 +432,8 @@ public class EditorHandler : Editor
                 {
                     Handles.DrawBezier(curvePoints[i][j].basePoint,
                         curvePoints[LoopIndex(i+1, curvePoints)][k].basePoint,
-                        curvePoints[i][j].HandlePoints[1],
-                        curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints[0],
+                        curvePoints[i][j].HandlePoints()[1],
+                        curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints()[0],
                         curveColor,
                         texture,
                         width
@@ -443,8 +445,8 @@ public class EditorHandler : Editor
                         Vector3[] normalPoints = Handles.MakeBezierPoints(
                             curvePoints[i][j].basePoint,
                             curvePoints[LoopIndex(i+1, curvePoints)][k].basePoint,
-                            curvePoints[i][j].HandlePoints[1],
-                            curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints[0],
+                            curvePoints[i][j].HandlePoints()[1],
+                            curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints()[0],
                             division);
                         
                         for (int l = 0; l < normalPoints.Length - 1; l++)
@@ -477,7 +479,6 @@ public class EditorHandler : Editor
                 Handles.DrawSolidDisc(point.basePoint, Vector3.up, _path.uiParams.pointSize);
             }
         }
-        //Debug.Log("Working!");
     }
 
     void DrawBezierDisplay(BezierPoint[][] curvePoints)
@@ -514,8 +515,8 @@ public class EditorHandler : Editor
                     Vector3[] normalPoints = Handles.MakeBezierPoints(
                         curvePoints[i][j].basePoint,
                         curvePoints[LoopIndex(i+1, curvePoints)][k].basePoint,
-                        curvePoints[i][j].HandlePoints[1],
-                        curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints[0],
+                        curvePoints[i][j].HandlePoints()[1],
+                        curvePoints[LoopIndex(i+1, curvePoints)][k].HandlePoints()[0],
                         Mathf.RoundToInt(1 / _path.pathParams.resolution));
                     
                     for (int l = 0; l < normalPoints.Length - 1; l++)
@@ -544,10 +545,21 @@ public class EditorHandler : Editor
                 } 
             }
         }
-        _path.pathParams.obstacleObj.gameObject.SetActive(!_path.uiParams.maskMode);
-        _path.pathParams.maskedObstacleObj.gameObject.SetActive(_path.uiParams.maskMode);
+        //UpdateMaskMode();
     }
 
+    // Needs a coroutine because Unity needs time to update its properties
+    IEnumerator UpdateMaskMode()
+    {
+        yield return null;
+        //Debug.Log("Updating!");
+        //Debug.Log(_path.uiParams.maskMode);
+        _path.pathParams.obstacleObj.gameObject.SetActive(!_path.uiParams.maskMode);
+        _path.pathParams.maskedObstacleObj.gameObject.SetActive(_path.uiParams.maskMode);
+        _path.roadMesh.meshRenderers[0].material = _path.uiParams.maskMode ? _path.roadMesh.trackParams.leftMaskMat : _path.roadMesh.trackParams.leftRoadMat;
+        _path.roadMesh.meshRenderers[1].material = _path.uiParams.maskMode ? _path.roadMesh.trackParams.rightMaskMat : _path.roadMesh.trackParams.rightRoadMat;
+    }
+ 
     void ClearObstacles()
     {
         while (_path.pathParams.obstacleObj.childCount > 0)

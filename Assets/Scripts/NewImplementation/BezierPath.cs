@@ -1,16 +1,17 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 [ExecuteAlways]
 public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
 {
     public PathParams pathParams;
     public UIParams uiParams;
-
+    
     public BezierMesh roadMesh;
-
+    public string courseJson;
+    
     // Sends the key pressed, the point selected (if any) (use -1 as a null value) and the position of the click (use Vector3.down)
     public delegate void EventHandler(KeyCode key, int index, Vector3 pos);
 
@@ -72,9 +73,6 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
 
                     centre /= arrLength;
 
-                    //Debug.Log(centre);
-                    //Debug.Log(arrLength);
-
                     Vector3[] tangent =
                     {
                         (arrLength % 2 == 0)
@@ -86,7 +84,6 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                                pathParams.CoursePoints[index][arrLength / 2].localHandles[1]) / 2
                             : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[1]
                     };
-                    //Debug.Log(tangent);
                     Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent[0], Vector3.up));
                     
                     //Debug.Log("Normal: " + normal);
@@ -166,9 +163,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                         pathParams.CoursePoints = tmpPoints;
                     }
                 }
-                
             };
-            //Refresh += roadMesh.UpdateMesh;
             Refresh += () =>
             {
                 uiParams.roadPlane.position = uiParams.yPlane * Vector3.up;
@@ -199,14 +194,14 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                 roadMesh.UpdateMesh();
             };
         }
+
+        courseJson = EditorJsonUtility.ToJson(pathParams.CoursePoints);
     }
 
     public void OnAfterDeserialize()
     {
-        
+        EditorJsonUtility.FromJsonOverwrite(courseJson, pathParams.CoursePoints);
     }
-    
-    // Start is called before the first frame update
     void Start()
     {
         if (!Application.IsPlaying(gameObject))
@@ -337,9 +332,9 @@ public class BezierPoint {
     public Vector3 basePoint;
     public Vector3[] localHandles;
     public bool handlesChanged;
-    public Vector3[] HandlePoints
+    public Vector3[] HandlePoints()
     {
-        get { return new[] { localHandles[0] + basePoint, localHandles[1] + basePoint }; }
+        return new[] { localHandles[0] + basePoint, localHandles[1] + basePoint };
     }
     
 

@@ -8,6 +8,7 @@ using Unity.MLAgents.Sensors;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 [ExecuteAlways]
 public class BezierMesh : MonoBehaviour
@@ -54,9 +55,7 @@ public class BezierMesh : MonoBehaviour
         {
             List<Vector3> tmpLeftVertices = new List<Vector3>();
             List<Vector3> tmpRightVertices = new List<Vector3>();
-            /*bool startSplit = points[(i + 1) % points.Length].Length > 1;
-            bool endSplit = points[i].Length > 1;*/
-            
+
             for (int j = 0; j < points[i].Length; j++)
             {
                 BezierPoint p1 = points[i][j];
@@ -67,7 +66,7 @@ public class BezierMesh : MonoBehaviour
 
                     Vector3[] bezierPoints = Handles.MakeBezierPoints(p1.basePoint,
                         p2.basePoint,
-                        p1.HandlePoints[1], p2.HandlePoints[0], division);
+                        p1.HandlePoints()[1], p2.HandlePoints()[0], division);
 
                     for (int l = 0; l < bezierPoints.Length; l++)
                     {
@@ -95,34 +94,14 @@ public class BezierMesh : MonoBehaviour
                             a - (trackParams.roadWidth - trackParams.roadLineWidth) / 2 * normal + trackParams.rightOffset,
                             a - (trackParams.roadWidth + trackParams.roadLineWidth) / 2 * normal + trackParams.rightOffset
                         };
-                        /*int pathTester = 1;
-                        if ((startSplit && k == pathTester) || (endSplit && j == pathTester))
-                        {
-                            Debug.DrawLine(leftPoints[0], leftPoints[1], Color.red, 1);
-                            Debug.DrawLine(rightPoints[0], rightPoints[1], Color.red, 1);
-                        }*/
 
                         tmpLeftVertices.AddRange(leftPoints);
                         tmpRightVertices.AddRange(rightPoints);
                     }
                     
                     
-                    
-                    //Debug.DrawLine(lastLeftPoints[0], lastLeftPoints[1], Color.red);
-                    //Debug.DrawLine(lastRightPoints[0], lastRightPoints[1], Color.red);
                     tmpLeftVertices.Add(Vector3.up);
                     tmpRightVertices.Add(Vector3.up);
-                    //tmpLeftVertices.AddRange(lastLeftPoints);
-                    //tmpRightVertices.AddRange(lastRightPoints);
-                    // Prevents weird path behaviour
-
-                    /*int offset = (i == points.Length - 2 && !closedLoop) ? -1 : 0;
-                    //int offset = 0;
-                    // Vertex index logic
-                    indices.AddRange(ReturnIndices(division + offset,
-                        2 * pathNum * division));
-
-                    pathNum++;*/
 
                 }
             }
@@ -134,7 +113,6 @@ public class BezierMesh : MonoBehaviour
 
         if (points.Length > 2)
         {
-            //Debug.Log(points.Length);
             for (int a = 0; a < points.Length + (closedLoop ? 0 : -1); a++)
             {
                 if (!(a == points.Length + (closedLoop ? 0 : -1) - 1 && !closedLoop))
@@ -152,8 +130,6 @@ public class BezierMesh : MonoBehaviour
                     Debug.Log(message);*/
                     for (int i = 0; i < firstLeftIndices.Count; i++)
                     {
-                        //Debug.Log(leftVertices[(a+1) % leftVertices.Length].Count);
-                        //Debug.Log(secondLeftIndices[(i-1) % secondLeftIndices.Count] + 1);
                         if (i == 0)
                         {
                             leftVertices[a].InsertRange(firstLeftIndices[i], 
@@ -231,15 +207,9 @@ public class BezierMesh : MonoBehaviour
             }
         }
 
-
-        //Debug.Log("Left vertices after culling: " + Unpack(leftVertices).Count);
         
-
-        //Debug.Log(tmpLeftVertices.Count);
         List<Vector3> triangleLeft = TriangleCourseVertices(leftVertices);
         List<Vector3> triangleRight = TriangleCourseVertices(rightVertices);
-
-        //Debug.Log(triangleLeft.Count);
 
         List<int> leftIndices = NormalIndices(triangleLeft, closedLoop);
         List<int> rightIndices = NormalIndices(triangleRight, closedLoop);
@@ -260,17 +230,6 @@ public class BezierMesh : MonoBehaviour
         meshColliders[0].sharedMesh = ReturnMesh(triangleLeft, leftIndices);
         meshColliders[1].sharedMesh = ReturnMesh(triangleRight, rightIndices);
 
-        if (path.uiParams.maskMode)
-        {
-            meshRenderers[0].material = trackParams.leftMaskMat;
-            meshRenderers[1].material = trackParams.rightMaskMat;
-        }
-        else
-        {
-            meshRenderers[0].material = trackParams.leftRoadMat;
-            meshRenderers[1].material = trackParams.rightRoadMat;
-        }
-        
         // Edit them after colliders have been set
 
         if (trackParams.cleanSplits)
@@ -393,6 +352,7 @@ public class BezierMesh : MonoBehaviour
     Mesh ReturnMesh(List<Vector3> vertices, List<int> indices)
     {
         Mesh mesh = new Mesh();
+        mesh.indexFormat = IndexFormat.UInt32;
         mesh.vertices = vertices.ToArray();
         mesh.SetTriangles(indices, 0);
         mesh.RecalculateBounds();
