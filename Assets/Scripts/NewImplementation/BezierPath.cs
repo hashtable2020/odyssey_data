@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using NewImplementation;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,9 +11,8 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
     public UIParams uiParams;
     
     public BezierMesh roadMesh;
-    public List<int> breakIndices;
-    public string courseJson;
-    
+
+
     // Sends the key pressed, the point selected (if any) (use -1 as a null value) and the position of the click (use Vector3.down)
     public delegate void EventHandler(KeyCode key, int index, Vector3 pos);
 
@@ -28,11 +28,16 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
     {
         if (PointHandler == null || Reset == null)
         {
-            if (pathParams.CoursePoints == null)
+            if (pathParams.CoursePoints == null && pathParams.courseSaveData.courseSave == null)
             {
                 pathParams.CoursePoints = new[] { new[] { BezierPoint.Zero } };
+                pathParams.courseSaveData.courseSave = new BezierPoint[1][];
                 pathParams = new PathParams();
                 uiParams = new UIParams();
+            }
+            else if (pathParams.CoursePoints == null)
+            {
+                pathParams.CoursePoints = pathParams.courseSaveData.courseSave;
             }
 
             PointHandler += (key, index, pos) =>
@@ -193,7 +198,10 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                 }
 
                 //Debug.Log(ToFlatArray(pathParams.CoursePoints, out breakIndices).Count);
-
+                if (pathParams.CoursePoints != null)
+                {
+                    pathParams.courseSaveData.courseSave = pathParams.CoursePoints;
+                }
                 roadMesh.UpdateMesh();
             };
 
@@ -210,7 +218,11 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
 
     public void OnAfterDeserialize()
     {
-        //pathParams.CoursePoints = ToMultiArray(JsonUtility.FromJson<List<BezierPoint>>(courseJson), breakIndices);
+        if (pathParams.courseSaveData.courseSave != null)
+        {
+            //Debug.Log(pathParams.courseSaveData.courseSave.Length);
+            pathParams.CoursePoints = pathParams.courseSaveData.courseSave;
+        }
     }
     void Start()
     {
@@ -222,8 +234,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
 
     Vector3[][] LocalHandleLocations(BezierPoint[][] coursePoints)
     {
-        Debug.Log(coursePoints.Length);
-        if (coursePoints.Length == 0)
+        if (coursePoints == null || coursePoints.Length == 0)
         {
             return new[] { new[] { Vector3.zero, Vector3.zero } };
         }
@@ -341,7 +352,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
         return (i % coursePoints.Length + coursePoints.Length) % coursePoints.Length;
     }
 
-    List<BezierPoint> ToFlatArray(BezierPoint[][] coursePoints, out List<int> indexArr)
+    /*List<BezierPoint> ToFlatArray(BezierPoint[][] coursePoints, out List<int> indexArr)
     {
         List<BezierPoint> tmpArr = new List<BezierPoint>();
         List<int> tmpIndexArr = new List<int>();
@@ -372,7 +383,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
         }
 
         return tmpMultiArray;
-    }
+    }*/
 }
 
 [System.Serializable]
@@ -401,6 +412,7 @@ public class BezierPoint {
 public class PathParams
 {
     public BezierPoint[][] CoursePoints = {new [] {BezierPoint.Zero}};
+    public CourseScriptableObject courseSaveData;
 
     public float resolution = 0.05f;
     public bool closedLoop;
