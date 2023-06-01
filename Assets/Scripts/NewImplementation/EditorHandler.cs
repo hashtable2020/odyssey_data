@@ -498,6 +498,8 @@ public class EditorHandler : Editor
                 Mathf.RoundToInt(1 / _path.pathParams.resolution));
     }
 
+    
+
     void SpawnObstacles(BezierPoint[][] curvePoints)
     {
         ClearObstacles();

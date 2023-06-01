@@ -179,34 +179,10 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                 uiParams.roadPlane.position = uiParams.yPlane * Vector3.up;
                 uiParams.roadPlane.rotation = Quaternion.identity;
                 Vector3[][] handleLocations = LocalHandleLocations(PathParams.CoursePoints);
-                // Removes all saved points
-                while (transform.childCount > 0)
-                {
-                    DestroyImmediate(transform.GetChild(0));
-                }
                 for (int i = 0; i < PathParams.CoursePoints.Length; i++)
                 {
-                    GameObject firstDim = new GameObject();
-                    firstDim.transform.parent = transform;
-                    //Instantiate(firstDim, transform);
                     for (int j = 0; j < PathParams.CoursePoints[i].Length; j++)
                     {
-                        GameObject secondDim = new GameObject();
-                        secondDim.transform.parent = firstDim.transform;
-                        //Instantiate(secondDim, firstDim.transform);
-                        GameObject basePoint = new GameObject();
-                        GameObject handlePointA = new GameObject();
-                        GameObject handlePointB = new GameObject();
-                        basePoint.transform.parent = secondDim.transform;
-                        basePoint.transform.position = PathParams.CoursePoints[i][j].basePoint;
-                        handlePointA.transform.parent = secondDim.transform;
-                        handlePointA.transform.position = PathParams.CoursePoints[i][j].HandlePoints()[0];
-                        handlePointB.transform.parent = secondDim.transform;
-                        handlePointB.transform.position = PathParams.CoursePoints[i][j].HandlePoints()[1];
-                        
-                        //Instantiate(blankPoint, PathParams.CoursePoints[i][j].basePoint, Quaternion.identity);
-                        //Instantiate(blankPoint, PathParams.CoursePoints[i][j].HandlePoints()[0], Quaternion.identity);
-                        //Instantiate(blankPoint, PathParams.CoursePoints[i][j].HandlePoints()[1], Quaternion.identity);
                         if (!PathParams.CoursePoints[i][j].handlesChanged)
                         {
 
@@ -219,6 +195,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                         
                     }
                 }
+                UpdateGameObjects(PathParams.CoursePoints);
                 
                 roadMesh.UpdateMesh();
             };
@@ -233,15 +210,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
 
     public void OnAfterDeserialize()
     {
-        /*if (pathParams.courseSaveData.courseSave != null)
-        {
-            Debug.Log(pathParams.courseSaveData.courseSave.Length);
-            PathParams.CoursePoints = pathParams.courseSaveData.courseSave;
-        }
-        else
-        {
-            Debug.Log("Null!");
-        }*/
+        
     }
     void Start()
     {
@@ -251,6 +220,57 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
         }
     }
 
+    void UpdateGameObjects(BezierPoint[][] curvePoints)
+    {
+        while (curvePoints.Length - transform.childCount != 0)
+        {
+            if (curvePoints.Length - transform.childCount < 0)
+            {
+                Destroy(transform.GetChild(transform.childCount - 1));
+            }
+            else
+            {
+                GameObject tmpObj = new GameObject();
+                tmpObj.transform.parent = transform;
+            }
+        }
+        for (int i = 0; i < curvePoints.Length; i++)
+        {
+            Transform currentChild = transform.GetChild(i);
+            while (curvePoints[i].Length - currentChild.childCount != 0)
+            {
+                if (curvePoints.Length - currentChild.childCount < 0)
+                {
+                    Destroy(currentChild.GetChild(transform.childCount - 1));
+                }
+                else
+                {
+                    GameObject tmpObj = new GameObject();
+                    tmpObj.transform.parent = currentChild;
+                }
+            }
+            for (int j = 0; j < curvePoints[i].Length; j++)
+            {
+                Transform currentElement = currentChild.GetChild(j);
+                while (currentElement.childCount != 3)
+                {
+                    if (currentElement.childCount < 3)
+                    {
+                        GameObject tmpObj = new GameObject();
+                        tmpObj.transform.parent = currentElement;
+                    }
+                    else
+                    {
+                        Destroy(currentElement.GetChild(currentElement.childCount - 1));
+                    }
+                }
+                currentElement.GetChild(0).position = curvePoints[i][j].basePoint;
+                currentElement.GetChild(1).position = curvePoints[i][j].HandlePoints()[0];
+                currentElement.GetChild(2).position = curvePoints[i][j].HandlePoints()[1];
+            }
+        }
+    }
+    
     Vector3[][] LocalHandleLocations(BezierPoint[][] coursePoints)
     {
         if (coursePoints == null || coursePoints.Length == 0)
@@ -414,7 +434,7 @@ public class BezierPoint {
     {
         return new[] { localHandles[0] + basePoint, localHandles[1] + basePoint };
     }
-    
+
 
     public BezierPoint(Vector3 basePoint, Vector3[] handles)
     {
@@ -431,7 +451,6 @@ public class BezierPoint {
 public class PathParams
 {
     public static BezierPoint[][] CoursePoints = {new [] {BezierPoint.Zero}};
-    public GameObject pathObject;
     public float resolution = 0.05f;
     public bool closedLoop;
     public float splitWidth = 0.1f;
