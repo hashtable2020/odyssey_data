@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [CustomEditor(typeof(BezierPath))]
 [CanEditMultipleObjects]
@@ -20,6 +22,7 @@ public class EditorHandler : Editor
     private KeyCode _keyPressed = KeyCode.None;
     private readonly KeyCode[] _hotkeys = {KeyCode.LeftShift, KeyCode.LeftControl, KeyCode.S, KeyCode.M};
     private SerializedProperty[] _parameters = new SerializedProperty[2];
+    
     //public Button resetPath;
     
     // Function to check whether the road was clicked and if so, the world space coordinates of the click
@@ -97,18 +100,14 @@ public class EditorHandler : Editor
     }
     void OnSceneGUI()
     {
-        DrawBezierDisplay(_path.pathParams.CoursePoints);
+        DrawBezierDisplay(PathParams.CoursePoints);
         // Defines new variable for later
-        _pathPoints = _path.pathParams.CoursePoints;
+        _pathPoints = PathParams.CoursePoints;
         Selection.activeObject = target;
         if (_pointSelected != -1)
         {
             // Draws the selected point and handles
             BezierPoint selectedPoint = _pathPoints[_pointSelected][_indexSelected];
-            
-            /*Debug.Log("Regular");
-            Debug.Log(selectedPoint.localHandles[0]);
-            Debug.Log(selectedPoint.localHandles[1]);*/
             
             Handles.color = _path.uiParams.handleColor;
             Handles.DrawLine(selectedPoint.basePoint, selectedPoint.HandlePoints()[0], _path.uiParams.handleWidth);
@@ -252,9 +251,14 @@ public class EditorHandler : Editor
         Tools.hidden = true;
         if (_path != null)
         {
+            /*if (_path.pathParams.courseSaveData.courseSave != null)
+            {
+                PathParams.CoursePoints = _path.pathParams.courseSaveData.courseSave;
+            }*/
+            
             ClearObstacles();
             _path.StartCoroutine(UpdateMaskMode());
-            _pathPoints = _path.pathParams.CoursePoints;
+            _pathPoints = PathParams.CoursePoints;
             _path.Refresh += () =>
             {
                 SpawnObstacles(_pathPoints);
@@ -265,7 +269,6 @@ public class EditorHandler : Editor
                 ClearObstacles();
             };
             _pointSelected = -1;
-
             _path.Refresh();
         }
 
@@ -289,7 +292,7 @@ public class EditorHandler : Editor
         {
             EditorGUI.indentLevel += 2;
             
-            BezierPoint selectedPoint = _path.pathParams.CoursePoints[_pointSelected][_indexSelected];
+            BezierPoint selectedPoint = PathParams.CoursePoints[_pointSelected][_indexSelected];
             EditorGUILayout.BeginHorizontal();
             selectedPoint.basePoint = EditorGUILayout.Vector3Field("Base Point: ", RoundVector(selectedPoint.basePoint, 2));
 
@@ -355,7 +358,7 @@ public class EditorHandler : Editor
         {
             _path.roadMesh.UpdateMesh();
         }
-        
+
         serializedObject.ApplyModifiedProperties();
         Repaint();
         //_path.Refresh();
@@ -396,7 +399,7 @@ public class EditorHandler : Editor
         return i % coursePoints.Length;
     }
 
-    
+
     /* Draws a multi-curve spline from several bezier points and a specific offset, colour, texture and width
     Also draws normals if required with a length of normalLength, thickness of normalThickness and division normals
     along each curve */

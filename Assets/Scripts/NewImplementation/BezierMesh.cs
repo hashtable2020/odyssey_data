@@ -1,11 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using JetBrains.Annotations;
-using Unity.Burst.Intrinsics;
-using Unity.MLAgents.Sensors;
-using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -24,7 +19,7 @@ public class BezierMesh : MonoBehaviour
 
     public void UpdateMesh()
     {
-        if (path == null || path.pathParams.CoursePoints.Length <= 1)
+        if (path == null || PathParams.CoursePoints.Length <= 1)
         {
             if (meshFilters != null)
             {
@@ -44,7 +39,7 @@ public class BezierMesh : MonoBehaviour
 
         if (path == null)
             return;
-        BezierPoint[][] points = path.pathParams.CoursePoints;
+        BezierPoint[][] points = PathParams.CoursePoints;
         int division = (int)Mathf.Round(1 / path.pathParams.resolution);
         bool closedLoop = path.pathParams.closedLoop;
 

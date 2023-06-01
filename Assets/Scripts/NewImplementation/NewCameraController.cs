@@ -27,17 +27,17 @@ public class NewCameraController : MonoBehaviour
         while (true)
         {
             BezierPoint p1;
-            BezierPoint p2 = path.pathParams.CoursePoints[0][0];
-            for (int i = 0; i < path.pathParams.CoursePoints.Length; i++)
+            BezierPoint p2 = PathParams.CoursePoints[0][0];
+            for (int i = 0; i < PathParams.CoursePoints.Length; i++)
             {
-                int randomIndex = path.pathParams.CoursePoints[(i + 1) % path.pathParams.CoursePoints.Length].Length > 1
+                int randomIndex = PathParams.CoursePoints[(i + 1) % PathParams.CoursePoints.Length].Length > 1
                     ? Mathf.FloorToInt(Random.value *
-                                       path.pathParams.CoursePoints[(i + 1) % path.pathParams.CoursePoints.Length]
+                                       PathParams.CoursePoints[(i + 1) % PathParams.CoursePoints.Length]
                                            .Length)
                     : 0;
                     
                 p1 = p2;
-                p2 = path.pathParams.CoursePoints[(i + 1) % path.pathParams.CoursePoints.Length][randomIndex];
+                p2 = PathParams.CoursePoints[(i + 1) % PathParams.CoursePoints.Length][randomIndex];
                 Vector3[] bezierPoints = Handles.MakeBezierPoints(p1.basePoint + offset, p2.basePoint + offset, p1.HandlePoints()[1] + offset,
                     p2.HandlePoints()[0] + offset, Mathf.FloorToInt(1 / resolution));
                 transform.position = bezierPoints[0];

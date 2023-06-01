@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using NewImplementation;
 using UnityEditor;
 using UnityEngine;
 
@@ -28,16 +27,16 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
     {
         if (PointHandler == null || Reset == null)
         {
-            if (pathParams.CoursePoints == null && pathParams.courseSaveData.courseSave == null)
+            if (PathParams.CoursePoints == null)
             {
-                pathParams.CoursePoints = new[] { new[] { BezierPoint.Zero } };
-                pathParams.courseSaveData.courseSave = new BezierPoint[1][];
+                PathParams.CoursePoints = new[] { new[] { BezierPoint.Zero } };
+                //pathParams.courseSaveData.courseSave = new BezierPoint[1][];
                 pathParams = new PathParams();
                 uiParams = new UIParams();
             }
-            else if (pathParams.CoursePoints == null)
+            else if (PathParams.CoursePoints == null)
             {
-                pathParams.CoursePoints = pathParams.courseSaveData.courseSave;
+                //PathParams.CoursePoints = pathParams.courseSaveData.courseSave;
             }
 
             PointHandler += (key, index, pos) =>
@@ -45,37 +44,37 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                 // Keyboard shortcuts, ctrl+click to remove, shift+click to add, s+click to split the path, m+click to merge, d to deselect
                 if (key == KeyCode.LeftShift)
                 {
-                    BezierPoint[][] tmpPoints = new BezierPoint[pathParams.CoursePoints.Length + 1][];
-                    pathParams.CoursePoints.CopyTo(tmpPoints, 0);
-                    pathParams.CoursePoints = tmpPoints;
-                    pathParams.CoursePoints[^1] = new[] { new BezierPoint(pos, new[] { Vector3.zero, Vector3.zero }) };
+                    BezierPoint[][] tmpPoints = new BezierPoint[PathParams.CoursePoints.Length + 1][];
+                    PathParams.CoursePoints.CopyTo(tmpPoints, 0);
+                    PathParams.CoursePoints = tmpPoints;
+                    PathParams.CoursePoints[^1] = new[] { new BezierPoint(pos, new[] { Vector3.zero, Vector3.zero }) };
                 }
                 else if (key == KeyCode.LeftControl)
                 {
                     if (index != -1)
                     {
-                        BezierPoint[][] tmpPoints = new BezierPoint[pathParams.CoursePoints.Length - 1][];
+                        BezierPoint[][] tmpPoints = new BezierPoint[PathParams.CoursePoints.Length - 1][];
                         int currentIndex = 0;
-                        for (int i = 0; i < pathParams.CoursePoints.Length; i++)
+                        for (int i = 0; i < PathParams.CoursePoints.Length; i++)
                         {
                             if (i != index)
                             {
-                                tmpPoints[currentIndex] = pathParams.CoursePoints[i];
+                                tmpPoints[currentIndex] = PathParams.CoursePoints[i];
                                 currentIndex++;
                             }
                         }
 
-                        pathParams.CoursePoints = tmpPoints;
+                        PathParams.CoursePoints = tmpPoints;
                     }
 
                 }
                 else if (key == KeyCode.S)
                 {
-                    BezierPoint[][] tmpPoints = new BezierPoint[pathParams.CoursePoints.Length][];
-                    int arrLength = pathParams.CoursePoints[index].Length;
+                    BezierPoint[][] tmpPoints = new BezierPoint[PathParams.CoursePoints.Length][];
+                    int arrLength = PathParams.CoursePoints[index].Length;
                     Vector3 centre = Vector3.zero;
 
-                    foreach (BezierPoint point in pathParams.CoursePoints[index])
+                    foreach (BezierPoint point in PathParams.CoursePoints[index])
                     {
                         centre += point.basePoint;
                     }
@@ -85,13 +84,13 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                     Vector3[] tangent =
                     {
                         (arrLength % 2 == 0)
-                            ? (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[0] +
-                               pathParams.CoursePoints[index][arrLength / 2].localHandles[0]) / 2
-                            : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[0],
+                            ? (PathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[0] +
+                               PathParams.CoursePoints[index][arrLength / 2].localHandles[0]) / 2
+                            : PathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[0],
                         (arrLength % 2 == 0)
-                            ? (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[1] +
-                               pathParams.CoursePoints[index][arrLength / 2].localHandles[1]) / 2
-                            : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[1]
+                            ? (PathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[1] +
+                               PathParams.CoursePoints[index][arrLength / 2].localHandles[1]) / 2
+                            : PathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[1]
                     };
                     Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent[0], Vector3.up));
 
@@ -105,7 +104,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                             centre + pathParams.splitWidth * normal, x), tangent);
                     }
 
-                    for (int j = 0; j < pathParams.CoursePoints.Length; j++)
+                    for (int j = 0; j < PathParams.CoursePoints.Length; j++)
                     {
                         if (j == index)
                         {
@@ -113,22 +112,22 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                         }
                         else
                         {
-                            tmpPoints[j] = pathParams.CoursePoints[j];
+                            tmpPoints[j] = PathParams.CoursePoints[j];
                         }
                     }
 
-                    pathParams.CoursePoints = tmpPoints;
-                    //Debug.Log("First split point: " + pathParams.CoursePoints[index][0].BasePoint + ", Second split point: " + pathParams.CoursePoints[index][1].BasePoint);
+                    PathParams.CoursePoints = tmpPoints;
+                    //Debug.Log("First split point: " + PathParams.CoursePoints[index][0].BasePoint + ", Second split point: " + PathParams.CoursePoints[index][1].BasePoint);
                 }
                 else if (key == KeyCode.M)
                 {
-                    if (pathParams.CoursePoints[index].Length != 1)
+                    if (PathParams.CoursePoints[index].Length != 1)
                     {
-                        BezierPoint[][] tmpPoints = new BezierPoint[pathParams.CoursePoints.Length][];
-                        int arrLength = pathParams.CoursePoints[index].Length;
+                        BezierPoint[][] tmpPoints = new BezierPoint[PathParams.CoursePoints.Length][];
+                        int arrLength = PathParams.CoursePoints[index].Length;
                         Vector3 centre = Vector3.zero;
 
-                        foreach (BezierPoint point in pathParams.CoursePoints[index])
+                        foreach (BezierPoint point in PathParams.CoursePoints[index])
                         {
                             centre += point.basePoint;
                         }
@@ -138,13 +137,13 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                         Vector3[] tangent =
                         {
                             (arrLength % 2 == 0)
-                                ? (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[0] +
-                                   pathParams.CoursePoints[index][arrLength / 2].localHandles[0]) / 2
-                                : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[0],
+                                ? (PathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[0] +
+                                   PathParams.CoursePoints[index][arrLength / 2].localHandles[0]) / 2
+                                : PathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[0],
                             (arrLength % 2 == 0)
-                                ? (pathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[1] +
-                                   pathParams.CoursePoints[index][arrLength / 2].localHandles[1]) / 2
-                                : pathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[1]
+                                ? (PathParams.CoursePoints[index][arrLength / 2 - 1].localHandles[1] +
+                                   PathParams.CoursePoints[index][arrLength / 2].localHandles[1]) / 2
+                                : PathParams.CoursePoints[index][(arrLength - 1) / 2].localHandles[1]
                         };
                         
                         Vector3 normal = Vector3.Normalize(Vector3.Cross(tangent[0], Vector3.up));
@@ -159,7 +158,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                                 centre + pathParams.splitWidth * normal, x), tangent);
                         }
 
-                        for (int j = 0; j < pathParams.CoursePoints.Length; j++)
+                        for (int j = 0; j < PathParams.CoursePoints.Length; j++)
                         {
                             if (j == index)
                             {
@@ -167,11 +166,11 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                             }
                             else
                             {
-                                tmpPoints[j] = pathParams.CoursePoints[j];
+                                tmpPoints[j] = PathParams.CoursePoints[j];
                             }
                         }
 
-                        pathParams.CoursePoints = tmpPoints;
+                        PathParams.CoursePoints = tmpPoints;
                     }
                 }
             };
@@ -179,50 +178,70 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             {
                 uiParams.roadPlane.position = uiParams.yPlane * Vector3.up;
                 uiParams.roadPlane.rotation = Quaternion.identity;
-                Vector3[][] handleLocations = LocalHandleLocations(pathParams.CoursePoints);
-                for (int i = 0; i < pathParams.CoursePoints.Length; i++)
+                Vector3[][] handleLocations = LocalHandleLocations(PathParams.CoursePoints);
+                // Removes all saved points
+                while (transform.childCount > 0)
                 {
-                    for (int j = 0; j < pathParams.CoursePoints[i].Length; j++)
+                    DestroyImmediate(transform.GetChild(0));
+                }
+                for (int i = 0; i < PathParams.CoursePoints.Length; i++)
+                {
+                    GameObject firstDim = new GameObject();
+                    firstDim.transform.parent = transform;
+                    //Instantiate(firstDim, transform);
+                    for (int j = 0; j < PathParams.CoursePoints[i].Length; j++)
                     {
-
-                        if (!pathParams.CoursePoints[i][j].handlesChanged)
+                        GameObject secondDim = new GameObject();
+                        secondDim.transform.parent = firstDim.transform;
+                        //Instantiate(secondDim, firstDim.transform);
+                        GameObject basePoint = new GameObject();
+                        GameObject handlePointA = new GameObject();
+                        GameObject handlePointB = new GameObject();
+                        basePoint.transform.parent = secondDim.transform;
+                        basePoint.transform.position = PathParams.CoursePoints[i][j].basePoint;
+                        handlePointA.transform.parent = secondDim.transform;
+                        handlePointA.transform.position = PathParams.CoursePoints[i][j].HandlePoints()[0];
+                        handlePointB.transform.parent = secondDim.transform;
+                        handlePointB.transform.position = PathParams.CoursePoints[i][j].HandlePoints()[1];
+                        
+                        //Instantiate(blankPoint, PathParams.CoursePoints[i][j].basePoint, Quaternion.identity);
+                        //Instantiate(blankPoint, PathParams.CoursePoints[i][j].HandlePoints()[0], Quaternion.identity);
+                        //Instantiate(blankPoint, PathParams.CoursePoints[i][j].HandlePoints()[1], Quaternion.identity);
+                        if (!PathParams.CoursePoints[i][j].handlesChanged)
                         {
 
-                            pathParams.CoursePoints[i][j].localHandles = new[]
+                            PathParams.CoursePoints[i][j].localHandles = new[]
                             {
                                 handleLocations[i][2 * j],
                                 handleLocations[i][2 * j + 1],
                             };
                         }
+                        
                     }
                 }
-
-                //Debug.Log(ToFlatArray(pathParams.CoursePoints, out breakIndices).Count);
-                if (pathParams.CoursePoints != null)
-                {
-                    pathParams.courseSaveData.courseSave = pathParams.CoursePoints;
-                }
+                
                 roadMesh.UpdateMesh();
             };
 
             Reset += () =>
             {
-                pathParams.CoursePoints = new[] { new[] { BezierPoint.Zero } };
+                PathParams.CoursePoints = new[] { new[] { BezierPoint.Zero } };
                 roadMesh.UpdateMesh();
             };
         }
-
-        //courseJson = JsonUtility.ToJson(ToFlatArray(pathParams.CoursePoints, out breakIndices));
-        //Debug.Log(courseJson);
     }
 
     public void OnAfterDeserialize()
     {
-        if (pathParams.courseSaveData.courseSave != null)
+        /*if (pathParams.courseSaveData.courseSave != null)
         {
-            //Debug.Log(pathParams.courseSaveData.courseSave.Length);
-            pathParams.CoursePoints = pathParams.courseSaveData.courseSave;
+            Debug.Log(pathParams.courseSaveData.courseSave.Length);
+            PathParams.CoursePoints = pathParams.courseSaveData.courseSave;
         }
+        else
+        {
+            Debug.Log("Null!");
+        }*/
     }
     void Start()
     {
@@ -411,9 +430,8 @@ public class BezierPoint {
 [System.Serializable]
 public class PathParams
 {
-    public BezierPoint[][] CoursePoints = {new [] {BezierPoint.Zero}};
-    public CourseScriptableObject courseSaveData;
-
+    public static BezierPoint[][] CoursePoints = {new [] {BezierPoint.Zero}};
+    public GameObject pathObject;
     public float resolution = 0.05f;
     public bool closedLoop;
     public float splitWidth = 0.1f;
