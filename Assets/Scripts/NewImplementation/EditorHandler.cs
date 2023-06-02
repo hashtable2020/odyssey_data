@@ -256,6 +256,7 @@ public class EditorHandler : Editor
                 PathParams.CoursePoints = _path.pathParams.courseSaveData.courseSave;
             }*/
             
+            _path.SaveGameObjects();
             ClearObstacles();
             _path.StartCoroutine(UpdateMaskMode());
             _pathPoints = PathParams.CoursePoints;

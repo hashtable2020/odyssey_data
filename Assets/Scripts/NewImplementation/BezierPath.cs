@@ -204,6 +204,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             {
                 PathParams.CoursePoints = new[] { new[] { BezierPoint.Zero } };
                 roadMesh.UpdateMesh();
+                ClearGameObjects();
             };
         }
     }
@@ -268,6 +269,30 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                 currentElement.GetChild(1).position = curvePoints[i][j].HandlePoints()[0];
                 currentElement.GetChild(2).position = curvePoints[i][j].HandlePoints()[1];
             }
+        }
+    }
+
+    public void SaveGameObjects()
+    {
+        PathParams.CoursePoints = new BezierPoint[transform.childCount][];
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            PathParams.CoursePoints[i] = new BezierPoint[transform.GetChild(i).childCount];
+            for (int j = 0; j < transform.GetChild(i).childCount; j++)
+            {
+                Transform pointObj = transform.GetChild(i).GetChild(j);
+                PathParams.CoursePoints[i][j] = new BezierPoint(pointObj.GetChild(0).position, 
+                    new [] {pointObj.GetChild(1).position - pointObj.GetChild(0).position, 
+                        pointObj.GetChild(2).position - pointObj.GetChild(0).position});
+            }
+        }
+    }
+
+    public void ClearGameObjects()
+    {
+        while (transform.childCount > 0)
+        {
+            DestroyImmediate(transform.GetChild(0));
         }
     }
     
@@ -391,38 +416,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
         return (i % coursePoints.Length + coursePoints.Length) % coursePoints.Length;
     }
 
-    /*List<BezierPoint> ToFlatArray(BezierPoint[][] coursePoints, out List<int> indexArr)
-    {
-        List<BezierPoint> tmpArr = new List<BezierPoint>();
-        List<int> tmpIndexArr = new List<int>();
-        for (int i = 0; i < coursePoints.Length; i++)
-        {
-            tmpArr.AddRange(coursePoints[i]);
-            tmpIndexArr.Add(tmpArr.Count - 1);
-        }
-
-        indexArr = tmpIndexArr;
-        return tmpArr;
-    }
-
-    BezierPoint[][] ToMultiArray(List<BezierPoint> flatArray, List<int> indexArray)
-    {
-        BezierPoint[][] tmpMultiArray = new BezierPoint[indexArray.Count][];
-        List<BezierPoint> tmpElement = new List<BezierPoint>();
-        int currentIndex = 0;
-        for (int i = 0; i < flatArray.Count; i++)
-        {
-            tmpElement.Add(flatArray[i]);
-            if (indexArray.Contains(i))
-            {
-                tmpMultiArray[currentIndex] = tmpElement.ToArray();
-                tmpElement = new List<BezierPoint>();
-                currentIndex++;
-            }
-        }
-
-        return tmpMultiArray;
-    }*/
+    
 }
 
 [System.Serializable]
