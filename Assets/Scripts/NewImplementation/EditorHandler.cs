@@ -269,6 +269,7 @@ public class EditorHandler : Editor
                 _pointSelected = -1; 
                 ClearObstacles();
             };
+            _path.uiParams.cameraController.MaskUpdate += UpdateMaskMode;
             _pointSelected = -1;
             _path.Refresh();
         }
@@ -552,19 +553,21 @@ public class EditorHandler : Editor
                 } 
             }
         }
-        //UpdateMaskMode();
     }
 
     // Needs a coroutine because Unity needs time to update its properties
     IEnumerator UpdateMaskMode()
     {
         yield return null;
-        //Debug.Log("Updating!");
-        //Debug.Log(_path.uiParams.maskMode);
         _path.pathParams.obstacleObj.gameObject.SetActive(!_path.uiParams.maskMode);
         _path.pathParams.maskedObstacleObj.gameObject.SetActive(_path.uiParams.maskMode);
         _path.roadMesh.meshRenderers[0].material = _path.uiParams.maskMode ? _path.roadMesh.trackParams.leftMaskMat : _path.roadMesh.trackParams.leftRoadMat;
         _path.roadMesh.meshRenderers[1].material = _path.uiParams.maskMode ? _path.roadMesh.trackParams.rightMaskMat : _path.roadMesh.trackParams.rightRoadMat;
+
+        _path.uiParams.roadRenderer.material =
+            _path.uiParams.maskMode ? _path.uiParams.blackMaterial : _path.uiParams.floorMaterial;
+        _path.uiParams.dataCamera.clearFlags =
+            _path.uiParams.maskMode ? CameraClearFlags.SolidColor : CameraClearFlags.Skybox;
     }
  
     void ClearObstacles()

@@ -1,7 +1,9 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 [ExecuteAlways]
 public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
@@ -227,7 +229,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
         {
             if (curvePoints.Length - transform.childCount < 0)
             {
-                Destroy(transform.GetChild(transform.childCount - 1));
+                DestroyImmediate(transform.GetChild(transform.childCount - 1).gameObject);
             }
             else
             {
@@ -242,7 +244,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
             {
                 if (curvePoints.Length - currentChild.childCount < 0)
                 {
-                    Destroy(currentChild.GetChild(transform.childCount - 1));
+                    DestroyImmediate(currentChild.GetChild(transform.childCount - 1));
                 }
                 else
                 {
@@ -262,7 +264,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
                     }
                     else
                     {
-                        Destroy(currentElement.GetChild(currentElement.childCount - 1));
+                        DestroyImmediate(currentElement.GetChild(currentElement.childCount - 1));
                     }
                 }
                 currentElement.GetChild(0).position = curvePoints[i][j].basePoint;
@@ -292,7 +294,7 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
     {
         while (transform.childCount > 0)
         {
-            DestroyImmediate(transform.GetChild(0));
+            DestroyImmediate(transform.GetChild(0).gameObject);
         }
     }
     
@@ -416,6 +418,46 @@ public class BezierPath : MonoBehaviour, ISerializationCallbackReceiver
         return (i % coursePoints.Length + coursePoints.Length) % coursePoints.Length;
     }
 
+    public void SpawnSigns(List<int> randomIndices)
+    {
+        while (pathParams.signObj.childCount > 0)
+        {
+            Destroy(pathParams.signObj.GetChild(0).gameObject);
+        }
+
+        for (int i = 0; i < PathParams.CoursePoints.Length; i++)
+        {
+            if (PathParams.CoursePoints[i].Length > 1)
+            {
+                Quaternion rotation = new Quaternion();
+
+                //Vector3 pos = (PathParams.CoursePoints[i][0].basePoint + PathParams.CoursePoints[i][1].basePoint) / 2;
+                
+                Vector3[] bezierPointsA = Handles.MakeBezierPoints(PathParams.CoursePoints[LoopIndex(i - 1, PathParams.CoursePoints)][0].basePoint,
+                    PathParams.CoursePoints[i][0].basePoint, PathParams.CoursePoints[LoopIndex(i - 1, PathParams.CoursePoints)][0].HandlePoints()[1],
+                    PathParams.CoursePoints[i][0].HandlePoints()[0], Mathf.FloorToInt(1 / pathParams.resolution));
+                Vector3[] bezierPointsB = Handles.MakeBezierPoints(PathParams.CoursePoints[LoopIndex(i - 1, PathParams.CoursePoints)][0].basePoint,
+                    PathParams.CoursePoints[i][1].basePoint, PathParams.CoursePoints[LoopIndex(i - 1, PathParams.CoursePoints)][0].HandlePoints()[1],
+                    PathParams.CoursePoints[i][1].HandlePoints()[0], Mathf.FloorToInt(1 / pathParams.resolution));
+                //Vector3 pos = PathParams.CoursePoints[LoopIndex(i - 1, PathParams.CoursePoints)][0].basePoint;
+                int bezierIndex = Mathf.RoundToInt(pathParams.signPathOffset * Mathf.Floor(1 / pathParams.resolution));
+                Vector3 pos = (bezierPointsA[bezierIndex] + bezierPointsB[bezierIndex]) / 2;
+                Vector3 diffVector = ((bezierPointsA[bezierIndex] - bezierPointsA[bezierIndex - 1]) +
+                                     (bezierPointsB[bezierIndex] - bezierPointsB[bezierIndex - 1])) / 2;
+                
+                //rotation.eulerAngles = Vector3.SignedAngle(Vector3.forward, PathParams.CoursePoints[LoopIndex(i - 1, PathParams.CoursePoints)][0].localHandles[1], Vector3.up) * Vector3.up;
+                /*rotation.eulerAngles = Vector3.SignedAngle(Vector3.forward,
+                    (PathParams.CoursePoints[i][0].localHandles[1] + PathParams.CoursePoints[i][1].localHandles[1]) / 2,
+                    Vector3.up) * Vector3.up + randomIndices[i] * new Vector3(180, 180, 0);*/
+                rotation.eulerAngles = Vector3.SignedAngle(Vector3.forward, diffVector,
+                    Vector3.up) * Vector3.up + randomIndices[i] * new Vector3(180, 180, 0);
+                
+                Instantiate(pathParams.signPrefab, pos + pathParams.objOffset, 
+                    rotation, pathParams.signObj);
+                
+            }
+        }
+    }
     
 }
 
@@ -455,6 +497,10 @@ public class PathParams
     public Object maskedObstaclePrefab;
     public Transform obstacleObj;
     public Transform maskedObstacleObj;
+    public Object signPrefab;
+    public Transform signObj;
+    public Vector3 objOffset = 0.03f * Vector3.up;
+    public float signPathOffset = 0.1f;
 }
 
 [System.Serializable]
@@ -463,6 +509,11 @@ public class UIParams
     public bool maskMode;
     public bool handlesSeparate = true;
     public Transform roadPlane;
+    public MeshRenderer roadRenderer;
+    public Material floorMaterial;
+    public Material blackMaterial;
+    public Camera dataCamera;
+    public NewCameraController cameraController;
     public float yPlane = 0;
     public float pointSize = 0.05f;
     public Color pointColor = Color.red;
