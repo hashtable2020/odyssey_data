@@ -103,8 +103,8 @@ public class NewCameraController : MonoBehaviour
                     if (recordingData)
                     {
                         // Clockwise is positive curvature, anticlockwise is negative curvature;
-                        string file = dataDir + imageIndex + "-NormalImage.png";
-                        string maskFile = dataDir + imageIndex + "-" + Curvature(bezierPoints[j-averageWindow], bezierPoints[j], bezierPoints[j+averageWindow]) + "-MaskedImage.png";
+                        string file = dataDir + imageIndex + "_NormalImage.png";
+                        string maskFile = dataDir + imageIndex + "_" + Curvature(bezierPoints[j-averageWindow], bezierPoints[j], bezierPoints[j+averageWindow]) + "_MaskedImage.png";
 
                         TakeScreenshot(file);
                         path.uiParams.maskMode = true;
