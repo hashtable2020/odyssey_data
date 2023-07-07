@@ -5,6 +5,8 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
+using Random = System.Random;
+
 [ExecuteAlways]
 public class BezierMesh : MonoBehaviour
 {
@@ -58,10 +60,10 @@ public class BezierMesh : MonoBehaviour
                 {
                     BezierPoint p2 = points[(i + 1) % points.Length][k];
 
-
                     Vector3[] bezierPoints = Handles.MakeBezierPoints(p1.basePoint,
                         p2.basePoint,
                         p1.HandlePoints()[1], p2.HandlePoints()[0], division);
+
 
                     for (int l = 0; l < bezierPoints.Length; l++)
                     {

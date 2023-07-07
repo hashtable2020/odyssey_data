@@ -37,7 +37,7 @@ public class NewCameraController : MonoBehaviour
         
     }
 
-    void TakeScreenshot(string filename)
+    void TakeScreenshot(string filename, bool flicker = false)
     {
         RenderTexture rt = new RenderTexture(width, height, 24);
         path.uiParams.dataCamera.targetTexture = rt;
@@ -104,9 +104,9 @@ public class NewCameraController : MonoBehaviour
                     {
                         // Clockwise is positive curvature, anticlockwise is negative curvature;
                         string file = dataDir + imageIndex + "_NormalImage.png";
-                        string maskFile = dataDir + imageIndex + "_" + Curvature(bezierPoints[j-averageWindow], bezierPoints[j], bezierPoints[j+averageWindow]) + "_MaskedImage.png";
+                        string maskFile = dataDir + imageIndex + "_MaskedImage.png";
 
-                        TakeScreenshot(file);
+                        TakeScreenshot(file, true);
                         path.uiParams.maskMode = true;
                         yield return MaskUpdate();
                         TakeScreenshot(maskFile);
